@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Side-view model of a linear electromagnetic stirrer in a molten aluminum bath. Change frequency, power and depth and watch the melt recirculate and homogenize.">
+<meta property="og:title" content="Furnace Stirrer">
+<meta property="og:description" content="Side-view electromagnetic stirring of a molten aluminum bath, with skin depth, recirculation and mixing time.">
+<title>Furnace Stirrer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: title row, one wide side-view bath (dye + tracers + stirrer), then controls beside readouts. Single dark look on purpose (furnace room). */
+:root {
+  --bg: #0d0b0a;
+  --fg: #f3e9dc;
+  --muted: #9a8a7a;
+  --line: #3a2e26;
+  --ember: #ff6a13;
+  --pos: #5ad1ff;
+  --panel: #171210;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 13px; padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 1100px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: .88; letter-spacing: .01em; text-transform: uppercase; margin: 0; }
+h1 span { color: var(--ember); }
+.sub { color: var(--muted); max-width: 52ch; margin: 0; line-height: 1.5; }
+.sub a { color: var(--pos); }
+.stage { position: relative; width: 100%; border: 1px solid var(--line); border-radius: 18px; background: #0a0807; overflow: hidden; }
+.stage canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 720px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 72px; align-items: center; gap: 10px; }
+label, .lab { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
+input[type=range] { width: 100%; min-width: 0; accent-color: var(--ember); }
+output { text-align: right; font-variant-numeric: tabular-nums; }
+select, button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+select { background: var(--panel); }
+button:hover, select:hover { border-color: var(--ember); }
+button[aria-pressed="true"] { background: var(--ember); border-color: var(--ember); color: #160a03; font-weight: 500; }
+:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 420px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat b { display: block; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat b small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+.hero b { color: var(--ember); }
+.regime { margin: 0; color: var(--muted); line-height: 1.5; }
+#spark { width: 100%; height: 44px; display: block; }
+details { color: var(--muted); line-height: 1.55; }
+details summary { cursor: pointer; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Furnace <span>Stirrer</span></h1>
+    <p class="sub">Side view of a molten aluminum bath with a linear electromagnetic stirrer under the floor. The bright layer on top is an alloy addition. Watch how fast the field mixes it in. <a href="/">Vortex toy (v1)</a></p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="dye" aria-hidden="true"></canvas>
+    <canvas id="trail" aria-hidden="true"></canvas>
+    <canvas id="over" role="img" aria-label="Cross-section of the bath showing dye mixing, flow tracers, the stirrer under the floor and the skin depth"></canvas>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="48"><output id="freqOut">5.0 Hz</output></div>
+      <div class="row"><label for="power">Power</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
+      <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="50" max="100" step="5" value="80"><output id="depthOut">0.80 m</output></div>
+      <div class="row"><label for="rev">Reversal</label>
+        <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
+      <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="stats">
+        <div class="stat hero"><span class="lab">Homogeneity</span><b id="sHomog">0<small>%</small></b></div>
+        <div class="stat"><span class="lab">To 95%</span><b id="sT95">n/a</b></div>
+        <div class="stat"><span class="lab">Sim time</span><b id="sTime">0<small>s</small></b></div>
+        <div class="stat"><span class="lab">Skin depth</span><b id="sDelta">0<small>mm</small></b></div>
+        <div class="stat"><span class="lab">Depth ratio</span><b id="sRatio">0<small>δ/H</small></b></div>
+        <div class="stat"><span class="lab">Peak flow</span><b id="sPeak">0<small>m/s</small></b></div>
+      </div>
+      <canvas id="spark" aria-label="Homogeneity over time"></canvas>
+      <p class="regime" id="regime"></p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Model notes</summary>
+    <ul>
+      <li>Force: a traveling-wave push along the floor under the left half of the bath, decaying with height as exp(−2d/δ). Skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate).</li>
+      <li>Flow: 2D incompressible solver (stable fluids) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence.</li>
+      <li>Wall force density is held constant. Frequency changes penetration depth only. A real machine also changes thrust with frequency, current and the gap through the refractory.</li>
+      <li>Field travel speed uses an assumed pole pitch of 0.20 m: vs = 2·τ·f.</li>
+      <li>Left out: 3D effects, free-surface motion, thermal convection, and any calibration against machine data. Sim time runs about 5× real time.</li>
+      <li>Qualitative only. Do not use it to size or predict a real installation.</li>
+    </ul>
+  </details>
+</div>
+
+<script src="sim.js"></script>
+<script>
+(function () {
+  var L = 2.0, NX = 240, DX = L / NX, TAU = 0.20, SIGMA = 3.8e6;
+  var STEP = 0.08, SPEEDUP = 4.8, STEP_WALL = STEP / SPEEDUP;
+
+  var stage = document.getElementById('stage');
+  var dyeC = document.getElementById('dye'), trailC = document.getElementById('trail'), overC = document.getElementById('over');
+  var dctx = dyeC.getContext('2d'), tctx = trailC.getContext('2d'), octx = overC.getContext('2d');
+  var spark = document.getElementById('spark'), sctx = spark.getContext('2d');
+  var el = function (id) { return document.getElementById(id); };
+  var freqIn = el('freq'), powerIn = el('power'), depthIn = el('depth'), revIn = el('rev'), playBtn = el('play');
+
+  var sim, depth = 0.8, freq = 5, power = 1, revT = 0, playing = true;
+  var off, offCtx, img, lut, tracers = [], hist = [], t95 = null, stats = null, dirS = 1, stepCount = 0;
+  var bx = 12, by = 12, bw = 100, bh = 40, dpr = 1, wallPhase = 0;
+  var PAD_L = 12, PAD_R = 40, PAD_T = 12, PAD_B = 58;
+
+  function buildLut() {
+    lut = new Uint8ClampedArray(256 * 3);
+    var stops = [[0, [40, 15, 8]], [0.3, [150, 55, 14]], [0.65, [255, 150, 48]], [1, [255, 238, 196]]];
+    for (var i = 0; i < 256; i++) {
+      var t = i / 255, k = 0;
+      while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+      var a = stops[k], b = stops[k + 1], f = (t - a[0]) / (b[0] - a[0]);
+      for (var c = 0; c < 3; c++) lut[i * 3 + c] = a[1][c] + (b[1][c] - a[1][c]) * f;
+    }
+  }
+
+  function freqFromSlider(s) { return 0.5 * Math.pow(120, s / 100); }
+
+  function makeSim() {
+    var ny = Math.round(depth / DX);
+    sim = new EMS.FluidSim(NX, ny, DX);
+    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA;
+    sim.buildProfile();
+    off = document.createElement('canvas'); off.width = NX; off.height = ny;
+    offCtx = off.getContext('2d'); img = offCtx.createImageData(NX, ny);
+    tracers = [];
+    var n = 520;
+    for (var i = 0; i < n; i++) tracers.push(spawn(true));
+    resetMetrics();
+    layout();
+  }
+
+  function spawn() {
+    return { x: 1 + Math.random() * (NX - 1), y: 1 + Math.random() * (sim.ny - 1), px: 0, py: 0, life: 120 + Math.random() * 260, init: false };
+  }
+
+  function resetMetrics() {
+    hist = []; t95 = null; stats = sim.stats(); dirS = 1; sim.dir = 1; sim.time = 0;
+  }
+
+  function layout() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = stage.clientWidth;
+    bw = w - PAD_L - PAD_R; bh = bw * depth / L; bx = PAD_L; by = PAD_T;
+    var h = Math.round(PAD_T + bh + PAD_B);
+    stage.style.height = h + 'px';
+    [dyeC, trailC, overC].forEach(function (c) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); });
+    dctx.setTransform(dpr, 0, 0, dpr, 0, 0); tctx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var sw = spark.clientWidth || 300;
+    spark.width = Math.round(sw * dpr); spark.height = Math.round(44 * dpr); sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, w, h);
+    tracers.forEach(function (t) { t.init = false; });
+  }
+
+  function sx(x) { return bx + (x - 0.5) / NX * bw; }
+  function sy(y) { return by + bh - (y - 0.5) / sim.ny * bh; }
+
+  function stepSim() {
+    if (revT > 0) {
+      var target = (Math.floor(sim.time / revT) % 2 === 0) ? 1 : -1;
+      dirS += (target - dirS) * (1 - Math.exp(-STEP / 2));
+      sim.dir = dirS;
+    } else { dirS += (1 - dirS) * (1 - Math.exp(-STEP / 2)); sim.dir = dirS; }
+    sim.step(STEP);
+    stepCount++;
+    wallPhase += STEP * Math.min(freq, 4) * 0.35 * dirS;
+
+    // tracers
+    var w = stage.clientWidth, h = stage.clientHeight;
+    tctx.globalCompositeOperation = 'destination-out';
+    tctx.fillStyle = 'rgba(0,0,0,0.05)';
+    tctx.fillRect(0, 0, w, h);
+    tctx.globalCompositeOperation = 'source-over';
+    tctx.strokeStyle = 'rgba(190,232,255,0.55)';
+    tctx.lineWidth = 1.1; tctx.lineCap = 'round';
+    tctx.beginPath();
+    for (var i = 0; i < tracers.length; i++) {
+      var t = tracers[i];
+      var u = sim.sample(sim.u, t.x, t.y), v = sim.sample(sim.v, t.x, t.y);
+      var nxp = t.x + u * STEP / DX, nyp = t.y + v * STEP / DX;
+      if (nxp < 1 || nxp > NX || nyp < 1 || nyp > sim.ny || --t.life < 0) {
+        var s = spawn(); t.x = s.x; t.y = s.y; t.life = s.life; t.init = false; continue;
+      }
+      if (t.init) { tctx.moveTo(sx(t.x), sy(t.y)); tctx.lineTo(sx(nxp), sy(nyp)); }
+      t.init = true; t.x = nxp; t.y = nyp;
+    }
+    tctx.stroke();
+
+    if (stepCount % 6 === 0) {
+      stats = sim.stats();
+      hist.push([sim.time, stats.homog]);
+      if (hist.length > 700) hist.shift();
+      if (t95 === null && stats.homog >= 0.95) t95 = sim.time;
+    }
+  }
+
+  function drawDye() {
+    var c = sim.c, W = sim.W, ny = sim.ny, d = img.data;
+    for (var j = 1; j <= ny; j++) {
+      var row = (ny - j) * NX;
+      for (var i = 1; i <= NX; i++) {
+        var v = c[i + W * j]; v = v < 0 ? 0 : v > 1 ? 1 : v;
+        var k = ((v * 255) | 0) * 3, p = (row + i - 1) * 4;
+        d[p] = lut[k]; d[p + 1] = lut[k + 1]; d[p + 2] = lut[k + 2]; d[p + 3] = 255;
+      }
+    }
+    offCtx.putImageData(img, 0, 0);
+    var w = stage.clientWidth, h = stage.clientHeight;
+    dctx.clearRect(0, 0, w, h);
+    dctx.imageSmoothingEnabled = true; dctx.imageSmoothingQuality = 'high';
+    dctx.drawImage(off, bx, by, bw, bh);
+  }
+
+  function drawOverlay() {
+    var w = stage.clientWidth, h = stage.clientHeight, ppm = bw / L;
+    octx.clearRect(0, 0, w, h);
+    var floor = by + bh;
+    var x0 = bx + sim.winA * bw, x1 = bx + sim.winB * bw;
+    var dpx = sim.delta * ppm;
+
+    // force zone glow above the stirrer
+    var g = octx.createLinearGradient(0, floor, 0, floor - Math.min(bh, dpx * 3));
+    for (var s = 0; s <= 6; s++) {
+      var dd = s * 0.5, a = 0.34 * power * Math.exp(-2 * dd);
+      g.addColorStop(Math.min(1, dd / 3), 'rgba(90,209,255,' + a.toFixed(3) + ')');
+    }
+    octx.fillStyle = g; octx.fillRect(x0, Math.max(by, floor - dpx * 3), x1 - x0, Math.min(bh, dpx * 3));
+
+    // walls and refractory floor
+    octx.strokeStyle = '#6b4a36'; octx.lineWidth = 2;
+    octx.beginPath(); octx.moveTo(bx, by); octx.lineTo(bx, floor); octx.lineTo(bx + bw, floor); octx.lineTo(bx + bw, by); octx.stroke();
+    octx.fillStyle = '#2a1e17'; octx.fillRect(bx - 1, floor + 1, bw + 2, 8);
+
+    // stirrer core with traveling wave teeth
+    var top = floor + 12, hh = 26, lam = 2 * TAU, teeth = Math.max(6, Math.round((x1 - x0) / (lam * ppm) * 8));
+    octx.fillStyle = '#1e1714'; octx.fillRect(x0, top, x1 - x0, hh);
+    octx.strokeStyle = '#4a382c'; octx.lineWidth = 1; octx.strokeRect(x0 + .5, top + .5, x1 - x0 - 1, hh - 1);
+    var tw = (x1 - x0) / teeth;
+    for (var k = 0; k < teeth; k++) {
+      var xr = k / teeth * ((x1 - x0) / (lam * ppm));
+      var a2 = 0.15 + 0.85 * Math.max(0, Math.sin(2 * Math.PI * (xr - wallPhase)));
+      octx.fillStyle = 'rgba(90,209,255,' + (a2 * (0.35 + 0.65 * power)).toFixed(3) + ')';
+      octx.fillRect(x0 + k * tw + 2, top + 5, tw - 4, hh - 10);
+    }
+    // direction arrow
+    var ay = top + hh + 13, dir = dirS >= 0 ? 1 : -1, cx = (x0 + x1) / 2, half = 34;
+    octx.strokeStyle = '#9a8a7a'; octx.fillStyle = '#9a8a7a'; octx.lineWidth = 1.5;
+    octx.beginPath(); octx.moveTo(cx - half * dir, ay); octx.lineTo(cx + half * dir, ay); octx.stroke();
+    octx.beginPath(); octx.moveTo(cx + (half + 6) * dir, ay); octx.lineTo(cx + (half - 2) * dir, ay - 4); octx.lineTo(cx + (half - 2) * dir, ay + 4); octx.closePath(); octx.fill();
+    octx.font = '10px IBM Plex Mono, monospace'; octx.textBaseline = 'middle';
+    octx.textAlign = 'right'; octx.fillText('TRAVELING FIELD', cx - half - 10, ay);
+
+    // skin depth bracket
+    var lx = bx + 0.03 * bw;
+    octx.strokeStyle = '#5ad1ff'; octx.fillStyle = '#5ad1ff'; octx.lineWidth = 1.5;
+    octx.beginPath(); octx.moveTo(lx, floor - 1); octx.lineTo(lx, floor - dpx); octx.moveTo(lx - 4, floor - dpx); octx.lineTo(lx + 4, floor - dpx); octx.stroke();
+    octx.textAlign = 'left'; octx.textBaseline = 'middle';
+    var ly = Math.min(floor - 8, floor - dpx - 8); if (ly < by + 8) ly = by + 8;
+    octx.fillText('δ ' + (sim.delta * 1000).toFixed(0) + ' mm', lx + 8, ly);
+
+    // depth ruler
+    octx.fillStyle = '#9a8a7a'; octx.strokeStyle = '#6b4a36'; octx.lineWidth = 1; octx.textAlign = 'left';
+    for (var m = 0.2; m <= depth + 1e-6; m += 0.2) {
+      var yy = floor - m * ppm;
+      octx.beginPath(); octx.moveTo(bx + bw, yy); octx.lineTo(bx + bw + 5, yy); octx.stroke();
+      octx.fillText(m.toFixed(1), bx + bw + 8, yy);
+    }
+    octx.fillText('m', bx + bw + 8, by - 1 + 0);
+  }
+
+  function drawSpark() {
+    var sw = spark.clientWidth || 300, sh = 44;
+    sctx.clearRect(0, 0, sw, sh);
+    sctx.strokeStyle = '#3a2e26'; sctx.lineWidth = 1; sctx.setLineDash([3, 4]);
+    var y95 = sh - 4 - 0.95 * (sh - 8);
+    sctx.beginPath(); sctx.moveTo(0, y95); sctx.lineTo(sw, y95); sctx.stroke(); sctx.setLineDash([]);
+    if (hist.length < 2) return;
+    var tmax = Math.max(60, hist[hist.length - 1][0]);
+    sctx.strokeStyle = '#ff8c22'; sctx.lineWidth = 2; sctx.beginPath();
+    for (var i = 0; i < hist.length; i++) {
+      var x = hist[i][0] / tmax * (sw - 2) + 1, y = sh - 4 - hist[i][1] * (sh - 8);
+      if (i === 0) sctx.moveTo(x, y); else sctx.lineTo(x, y);
+    }
+    sctx.stroke();
+  }
+
+  function readouts() {
+    el('sHomog').innerHTML = Math.round(stats.homog * 100) + '<small>%</small>';
+    el('sT95').innerHTML = t95 === null ? 'n/a' : Math.round(t95) + '<small>s</small>';
+    el('sTime').innerHTML = Math.round(sim.time) + '<small>s</small>';
+    el('sDelta').innerHTML = (sim.delta * 1000).toFixed(0) + '<small>mm</small>';
+    var r = sim.delta / depth;
+    el('sRatio').innerHTML = r.toFixed(2) + '<small>δ/H</small>';
+    el('sPeak').innerHTML = stats.vmax.toFixed(2) + '<small>m/s</small>';
+    var txt = r < 0.08 ? 'Skin-limited. The force stays in a thin layer at the floor, so the bulk is dragged by a wall jet.'
+      : r < 0.5 ? 'Bulk drive. The force reaches well into the bath and sets up one large recirculation loop.'
+      : 'Deep penetration. The force fills most of the bath depth.';
+    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s.';
+    if (el('regime').textContent !== txt) el('regime').textContent = txt;
+  }
+
+  var last = 0, acc = 0, frames = 0;
+  function frame(ts) {
+    var dtw = Math.min(0.05, (ts - last) / 1000); last = ts;
+    if (playing) {
+      acc += dtw; var n = 0;
+      while (acc >= STEP_WALL && n < 2) { stepSim(); acc -= STEP_WALL; n++; }
+      if (acc > STEP_WALL * 2) acc = 0;
+    }
+    drawDye(); drawOverlay();
+    if (frames++ % 4 === 0) { readouts(); drawSpark(); }
+    requestAnimationFrame(frame);
+  }
+
+  function setFreq() {
+    freq = freqFromSlider(+freqIn.value);
+    el('freqOut').textContent = freq.toFixed(1) + ' Hz';
+    if (sim) { sim.params.freq = freq; sim.buildProfile(); }
+  }
+  freqIn.addEventListener('input', setFreq);
+  powerIn.addEventListener('input', function () {
+    power = +powerIn.value / 100; el('powerOut').textContent = powerIn.value + ' %';
+    sim.params.power = power;
+  });
+  depthIn.addEventListener('input', function () {
+    depth = +depthIn.value / 100; el('depthOut').textContent = depth.toFixed(2) + ' m';
+    makeSim();
+  });
+  revIn.addEventListener('change', function () { revT = +revIn.value; });
+  playBtn.addEventListener('click', function () {
+    playing = !playing; playBtn.setAttribute('aria-pressed', String(!playing)); playBtn.textContent = playing ? 'Pause' : 'Play';
+  });
+  el('alloy').addEventListener('click', function () {
+    sim.resetDye(0.25); hist = []; t95 = null; sim.time = 0; stats = sim.stats();
+    tctx.clearRect(0, 0, stage.clientWidth, stage.clientHeight);
+  });
+  window.addEventListener('resize', layout);
+
+  buildLut();
+  setFreq();
+  makeSim();
+  // warm up so the first frame already shows flow
+  for (var w = 0; w < 30; w++) sim.step(STEP);
+  sim.time = 0; hist = []; stats = sim.stats();
+  requestAnimationFrame(function (ts) { last = ts; frame(ts); });
+})();
+</script>
+</body>
+</html>
