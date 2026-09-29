@@ -15,7 +15,7 @@
   var BRICK = '#4a3a2d', BRICK_LINE = '#6b5642';
   var DENSITY = 0.18;     // how concentrated a mold must be, relative to tank average, to read "full"
   var HOLD_FRAMES = 60;   // ~1s at 60fps of sustained fill to lock a mold
-  var FILL_THRESHOLD = 0.3; // fillEMA needed before hold time accrues
+  var FILL_THRESHOLD = 0.15; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
   var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
 
@@ -37,15 +37,15 @@
       par: { cost: 3, cycles: 14, area: 10 }
     },
     {
-      id: 'thread-the-needle', name: 'Thread the Needle', budget: 2,
-      hint: 'Only two coils this time. Weave the pour through the gap between the blocks.',
+      id: 'thread-the-needle', name: 'Thread the Needle', budget: 3,
+      hint: 'Weave the pour through the gap between the blocks.',
       spouts: [{ x: .20, y: .20, color: MAT.A }],
-      molds: [{ x: .68, y: .68, r: .16, color: MAT.A }],
+      molds: [{ x: .60, y: .60, r: .19, color: MAT.A }],
       obstacles: [
         { x: .32, y: 0, w: .12, h: .38 },
         { x: .56, y: .62, w: .12, h: .38 }
       ],
-      par: { cost: 2, cycles: 16, area: 8 }
+      par: { cost: 3, cycles: 16, area: 8 }
     },
     {
       id: 'two-metals', name: 'Two Metals', budget: 5,
