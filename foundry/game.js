@@ -284,7 +284,6 @@
     if (allLocked && !solved) onSolved();
 
     if (t % 6 === 0) updateHUD();
-    window.__dbg = { t: t, moldCounts: moldCounts, moldState: moldState, particles: particles.length, coils: coils, mp: mp, sample: { x: particles[0].x, y: particles[0].y, vx: particles[0].vx, vy: particles[0].vy } };
   }
 
   function onSolved() {
