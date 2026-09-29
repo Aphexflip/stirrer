@@ -34,18 +34,18 @@
       spouts: [{ x: .18, y: .5, color: MAT.A }],
       molds: [{ x: .64, y: .5, r: .19, color: MAT.A }],
       obstacles: [{ x: .42, y: .22, w: .14, h: .56 }],
-      par: { cost: 3, cycles: 14, area: 10 }
+      par: { cost: 3, cycles: 45, area: 10 }
     },
     {
       id: 'thread-the-needle', name: 'Thread the Needle', budget: 3,
       hint: 'Weave the pour through the gap between the blocks.',
       spouts: [{ x: .20, y: .20, color: MAT.A }],
-      molds: [{ x: .60, y: .60, r: .19, color: MAT.A }],
+      molds: [{ x: .78, y: .45, r: .20, color: MAT.A }],
       obstacles: [
         { x: .32, y: 0, w: .12, h: .38 },
         { x: .56, y: .62, w: .12, h: .38 }
       ],
-      par: { cost: 3, cycles: 16, area: 8 }
+      par: { cost: 3, cycles: 50, area: 8 }
     },
     {
       id: 'two-metals', name: 'Two Metals', budget: 5,
@@ -72,7 +72,7 @@
       spouts: [{ x: .20, y: .5, color: MAT.A }],
       molds: [{ x: .70, y: .30, r: .15, color: MAT.A }, { x: .70, y: .70, r: .15, color: MAT.A }],
       obstacles: [],
-      par: { cost: 4, cycles: 22, area: 18 }
+      par: { cost: 4, cycles: 50, area: 18 }
     }
   ];
 
