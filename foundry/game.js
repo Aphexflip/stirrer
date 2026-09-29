@@ -13,9 +13,9 @@
   var MAT = { A: '#ffb03a', B: '#7ee787' };   // material colors (kept apart from coil pos/neg colors)
   var POS = '#5ad1ff', NEG = '#c58bff';
   var BRICK = '#4a3a2d', BRICK_LINE = '#6b5642';
-  var DENSITY = 0.35;     // how concentrated a mold must be, relative to tank average, to read "full"
-  var HOLD_FRAMES = 75;   // ~1.25s at 60fps of sustained fill to lock a mold
-  var FILL_THRESHOLD = 0.4; // fillEMA needed before hold time accrues
+  var DENSITY = 0.18;     // how concentrated a mold must be, relative to tank average, to read "full"
+  var HOLD_FRAMES = 60;   // ~1s at 60fps of sustained fill to lock a mold
+  var FILL_THRESHOLD = 0.3; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
   var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
 
