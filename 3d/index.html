@@ -92,6 +92,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <div class="row"><label for="gain">Alloy opacity</label><input id="gain" type="range" min="1" max="10" step="0.5" value="3"><output id="gainOut">3.0</output></div>
       <div class="row"><label for="rev">Reversal</label>
         <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
+      <div class="row"><label for="quality">Resolution</label>
+        <select id="quality"><option value="56">Fast (36 mm cells)</option><option value="84">Fine (24 mm, slower)</option></select><span></span></div>
       <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button><button id="resetView">Reset view</button></div>
     </div>
 
@@ -113,7 +115,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     <summary>Model notes</summary>
     <ul>
       <li>Force: a traveling-wave push along the floor under the left half of the bath, decaying with height as exp(−2d/δ). Skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate). The cyan box over the stirrer is drawn δ tall.</li>
-      <li>Flow: 3D incompressible solver (stable fluids) on a 56 × 22 × 28 grid with 36 mm cells. Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence.</li>
+      <li>Flow: 3D incompressible solver (stable fluids) on a 56 × 22 × 28 grid with 36 mm cells (Fast) or 84 × 34 × 42 with 24 mm cells (Fine). Above about 20 Hz the skin depth is only one or two Fast cells thick, and Fast over-predicts mixing; Fine is closer to converged. Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence.</li>
       <li>At high frequency δ is smaller than one cell. The solver keeps the total thrust but cannot resolve the thin layer, so treat high-frequency results as rough.</li>
       <li>Cross flow is the fastest motion across the bath width. It comes from the stirrer being narrower than the bath and from friction on the side walls. A 2D model has none.</li>
       <li>Wall force density is held constant. Frequency changes penetration depth only. Stirrer width, bath length and the 0.20 m pole pitch are assumptions, not machine data.</li>
@@ -265,6 +267,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   }
 
   function makeSim() {
+    NX = +$('quality').value; DX = L / NX; NZ = Math.round(WZ / DX);
     ny = Math.round(depth / DX); H = ny * DX;
     sim = new EMS3.Fluid3D(NX, ny, NZ, DX);
     sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA;
@@ -454,6 +457,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     sim.zA = 0.5 - zw / 2; sim.zB = 0.5 + zw / 2; sim.buildProfile(); buildStirrer(); updateForceBox();
   });
   $('gain').addEventListener('input', function () { gain = +this.value; $('gainOut').textContent = gain.toFixed(1); volMesh.material.uniforms.uGain.value = gain; });
+  $('quality').addEventListener('change', function () { makeSim(); });
   $('rev').addEventListener('change', function () { revT = +this.value; });
   $('play').addEventListener('click', function () { playing = !playing; this.setAttribute('aria-pressed', String(!playing)); this.textContent = playing ? 'Pause' : 'Play'; });
   $('alloy').addEventListener('click', function () { sim.resetDye(0.25); hist = []; t95 = null; sim.time = 0; stats = sim.stats(); });
