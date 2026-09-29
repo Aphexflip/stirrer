@@ -24,7 +24,7 @@
       id: 'first-pour', name: 'First Pour', budget: 3,
       hint: 'The melt pours in top-left and needs to land in the mold bottom-right. Click empty tank to drop a coil, drag to move it, tap to flip its spin.',
       spouts: [{ x: .20, y: .28, color: MAT.A }],
-      molds: [{ x: .74, y: .70, r: .13, color: MAT.A }],
+      molds: [{ x: .70, y: .70, r: .17, color: MAT.A }],
       obstacles: [],
       par: { cost: 2, cycles: 10, area: 6 }
     },
@@ -32,7 +32,7 @@
       id: 'around-the-pillar', name: 'Around the Pillar', budget: 3,
       hint: 'A refractory pillar blocks the straight line. Route the flow around it.',
       spouts: [{ x: .18, y: .5, color: MAT.A }],
-      molds: [{ x: .78, y: .5, r: .12, color: MAT.A }],
+      molds: [{ x: .74, y: .5, r: .16, color: MAT.A }],
       obstacles: [{ x: .42, y: .12, w: .14, h: .76 }],
       par: { cost: 3, cycles: 14, area: 10 }
     },
@@ -40,7 +40,7 @@
       id: 'thread-the-needle', name: 'Thread the Needle', budget: 2,
       hint: 'Only two coils this time. Weave the pour through the gap between the blocks.',
       spouts: [{ x: .20, y: .20, color: MAT.A }],
-      molds: [{ x: .74, y: .74, r: .12, color: MAT.A }],
+      molds: [{ x: .68, y: .68, r: .16, color: MAT.A }],
       obstacles: [
         { x: .34, y: 0, w: .14, h: .48 },
         { x: .54, y: .52, w: .14, h: .48 }
@@ -51,7 +51,7 @@
       id: 'two-metals', name: 'Two Metals', budget: 5,
       hint: 'Two pours, two molds, opposite colors. Keep them apart or the molds read contaminated and never fill.',
       spouts: [{ x: .18, y: .30, color: MAT.A }, { x: .18, y: .70, color: MAT.B }],
-      molds: [{ x: .76, y: .30, r: .11, color: MAT.A }, { x: .76, y: .70, r: .11, color: MAT.B }],
+      molds: [{ x: .70, y: .30, r: .15, color: MAT.A }, { x: .70, y: .70, r: .15, color: MAT.B }],
       obstacles: [
         { x: .44, y: 0, w: .06, h: .44 },
         { x: .44, y: .56, w: .06, h: .44 }
@@ -62,7 +62,7 @@
       id: 'the-long-pour', name: 'The Long Pour', budget: 1,
       hint: 'One coil. A single coil doesn’t pull melt toward it, it sweeps melt around it in a circle. Find the spot equally far from the spout and the mold, so that circle passes through both.',
       spouts: [{ x: .32, y: .32, color: MAT.A }],
-      molds: [{ x: .62, y: .64, r: .15, color: MAT.A }],
+      molds: [{ x: .62, y: .64, r: .17, color: MAT.A }],
       obstacles: [],
       par: { cost: 1, cycles: 16, area: 2 }
     },
@@ -70,7 +70,7 @@
       id: 'split-stream', name: 'Split Stream', budget: 4,
       hint: 'One spout, two molds, same metal. Split the pour so both fill at once, not one after the other.',
       spouts: [{ x: .20, y: .5, color: MAT.A }],
-      molds: [{ x: .76, y: .30, r: .11, color: MAT.A }, { x: .76, y: .70, r: .11, color: MAT.A }],
+      molds: [{ x: .70, y: .30, r: .15, color: MAT.A }, { x: .70, y: .70, r: .15, color: MAT.A }],
       obstacles: [],
       par: { cost: 4, cycles: 22, area: 18 }
     }
