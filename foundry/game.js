@@ -51,12 +51,12 @@
       id: 'two-metals', name: 'Two Metals', budget: 5,
       hint: 'Two pours, two molds, opposite colors. Keep them apart or the molds read contaminated and never fill.',
       spouts: [{ x: .18, y: .30, color: MAT.A }, { x: .18, y: .70, color: MAT.B }],
-      molds: [{ x: .70, y: .30, r: .15, color: MAT.A }, { x: .70, y: .70, r: .15, color: MAT.B }],
+      molds: [{ x: .78, y: .30, r: .18, color: MAT.A }, { x: .78, y: .70, r: .18, color: MAT.B }],
       obstacles: [
-        { x: .44, y: 0, w: .06, h: .44 },
-        { x: .44, y: .56, w: .06, h: .44 }
+        { x: .44, y: 0, w: .06, h: .36 },
+        { x: .44, y: .64, w: .06, h: .36 }
       ],
-      par: { cost: 5, cycles: 18, area: 16 }
+      par: { cost: 5, cycles: 50, area: 16 }
     },
     {
       id: 'the-long-pour', name: 'The Long Pour', budget: 1,
