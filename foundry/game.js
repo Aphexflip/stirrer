@@ -15,7 +15,7 @@
   var BRICK = '#4a3a2d', BRICK_LINE = '#6b5642';
   var DENSITY = 0.35;     // how concentrated a mold must be, relative to tank average, to read "full"
   var HOLD_FRAMES = 90;   // ~1.5s at 60fps of sustained fill to lock a mold
-  var FILL_THRESHOLD = 0.55; // fillEMA needed before hold time accrues
+  var FILL_THRESHOLD = 0.4; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
   var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
 
@@ -277,7 +277,7 @@
       var st = moldState[m];
       st.fillEMA += (instant - st.fillEMA) * 0.05;
       if (st.fillEMA >= FILL_THRESHOLD) st.hold = Math.min(HOLD_FRAMES, st.hold + 1);
-      else st.hold = Math.max(0, st.hold - 2);
+      else st.hold = Math.max(0, st.hold - 0.4);
       if (st.hold >= HOLD_FRAMES) st.locked = true;
       if (!st.locked) allLocked = false;
     }
