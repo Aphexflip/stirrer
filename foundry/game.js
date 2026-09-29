@@ -17,7 +17,7 @@
   var HOLD_FRAMES = 90;   // ~1.5s at 60fps of sustained fill to lock a mold
   var FILL_THRESHOLD = 0.75; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
-  var MAX_LIFE = 1400;    // hard respawn cap so a lost particle can't wander forever
+  var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
 
   var LEVELS = [
     {
