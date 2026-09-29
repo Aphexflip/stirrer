@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="A puzzle mode for Stirrer: place electromagnetic coils to route molten metal from spout to mold, scored on coils, time and footprint.">
+<meta property="og:title" content="Foundry">
+<meta property="og:description" content="Opus Magnum, but the mechanism is a magnetic field and the payload is molten metal.">
+<style>html,body{margin:0;background:#0d0b0a}</style>
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://stirrer.rsymo.com/foundry/">
+<meta property="og:image" content="https://stirrer.rsymo.com/og/vortex.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://stirrer.rsymo.com/og/vortex.png">
+<title>Foundry — Stirrer</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #0d0b0a;
+  --fg: #f3e9dc;
+  --muted: #9a8a7a;
+  --line: #3a2e26;
+  --ember: #ff6a13;
+  --pos: #5ad1ff;
+  --neg: #c58bff;
+  --panel: #171210;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--mono); font-size: 13px;
+  padding-inline: 16px; padding-block: 0; height: 100vh; height: 100dvh;
+  overflow: hidden;
+}
+.app { position: relative; height: 100%; display: flex; flex-direction: column; gap: 10px; padding-block: 14px; min-width: 0; }
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: .85; letter-spacing: .01em; text-transform: uppercase; margin: 0; text-wrap: balance; }
+h1 span { color: var(--ember); }
+.hint { color: var(--muted); max-width: 62ch; margin: 0; line-height: 1.5; min-height: calc(1.5em * 3); }
+.stage { position: relative; flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 28px; overflow: hidden; background: #0a0807; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+#ui { cursor: grab; }
+#ui.drag { cursor: grabbing; }
+.controls { display: flex; gap: 12px 20px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+button:hover { border-color: var(--ember); }
+:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.stats { display: flex; gap: 14px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stats b { color: var(--fg); font-weight: 500; }
+.molds { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.moldchip { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.bar { width: 70px; height: 8px; border-radius: 4px; background: #221a15; border: 1px solid var(--line); overflow: hidden; display: inline-block; }
+.fill { display: block; height: 100%; width: 0%; transition: width .15s linear; }
+
+/* overlays */
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(10,8,7,0.72); backdrop-filter: blur(4px); overflow: auto; }
+.overlay[hidden] { display: none; }
+.panelCard { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; max-width: 560px; width: 100%; text-align: center; }
+.panelCard h2 { font-family: var(--display); text-transform: uppercase; font-size: clamp(1.6rem, 5vw, 2.2rem); margin: 4px 0 8px; letter-spacing: .01em; }
+.panelCard .sub { color: var(--muted); line-height: 1.5; margin: 0 0 16px; }
+.stars { font-size: 28px; letter-spacing: .12em; color: var(--ember); }
+.metrics { display: flex; justify-content: center; gap: 22px; margin: 14px 0 18px; flex-wrap: wrap; }
+.metrics div { display: flex; flex-direction: column; }
+.metrics b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.metrics span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.winRow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.levelGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 4px; }
+.levelCard { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 12px; border-radius: 12px; text-align: left; }
+.lvNum { color: var(--muted); font-size: 11px; letter-spacing: .1em; }
+.lvName { font-weight: 500; }
+.lvStars { color: var(--ember); letter-spacing: .08em; }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Found<span>ry</span></h1>
+    <p class="hint" id="hint">Place coils, steer the pour, fill the mold.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="trail"></canvas>
+    <canvas id="ui" aria-label="Melt tank with spouts, molds and draggable coils"></canvas>
+    <div class="overlay" id="levelSelect"></div>
+    <div class="overlay" id="winPanel" hidden></div>
+  </div>
+
+  <div class="controls">
+    <button id="levelsBtn">Levels</button>
+    <button id="resetRun">Reset run</button>
+    <button id="clearCoils">Clear coils</button>
+    <div class="stats"><span>Coils <b id="coilStat">0/0</b></span><span>Time <b id="timer">0.0s</b></span></div>
+    <div class="molds" id="moldChips"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script src="/nav.js?v=4"></script>
+</body>
+</html>

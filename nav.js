@@ -1,6 +1,6 @@
-/* Shared nav for all three Stirrer pages. */
+/* Shared nav for all Stirrer pages. */
 (function () {
-  var items = [["/", "Vortex"], ["/furnace/", "Furnace 2D"], ["/3d/", "Furnace 3D"]];
+  var items = [["/", "Vortex"], ["/furnace/", "Furnace 2D"], ["/3d/", "Furnace 3D"], ["/foundry/", "Foundry"]];
   var path = location.pathname.replace(/index\.html$/, "");
   var css = document.createElement("style");
   css.textContent =
