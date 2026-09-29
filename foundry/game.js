@@ -33,7 +33,7 @@
       hint: 'A refractory pillar blocks the straight line. Route the flow around it.',
       spouts: [{ x: .18, y: .5, color: MAT.A }],
       molds: [{ x: .74, y: .5, r: .16, color: MAT.A }],
-      obstacles: [{ x: .42, y: .12, w: .14, h: .76 }],
+      obstacles: [{ x: .42, y: .22, w: .14, h: .56 }],
       par: { cost: 3, cycles: 14, area: 10 }
     },
     {
@@ -42,8 +42,8 @@
       spouts: [{ x: .20, y: .20, color: MAT.A }],
       molds: [{ x: .68, y: .68, r: .16, color: MAT.A }],
       obstacles: [
-        { x: .34, y: 0, w: .14, h: .48 },
-        { x: .54, y: .52, w: .14, h: .48 }
+        { x: .32, y: 0, w: .12, h: .38 },
+        { x: .56, y: .62, w: .12, h: .38 }
       ],
       par: { cost: 2, cycles: 16, area: 8 }
     },
@@ -62,9 +62,9 @@
       id: 'the-long-pour', name: 'The Long Pour', budget: 1,
       hint: 'One coil. A single coil doesn’t pull melt toward it, it sweeps melt around it in a circle. Find the spot equally far from the spout and the mold, so that circle passes through both.',
       spouts: [{ x: .32, y: .32, color: MAT.A }],
-      molds: [{ x: .62, y: .64, r: .17, color: MAT.A }],
+      molds: [{ x: .77, y: .80, r: .20, color: MAT.A }],
       obstacles: [],
-      par: { cost: 1, cycles: 16, area: 2 }
+      par: { cost: 1, cycles: 20, area: 2 }
     },
     {
       id: 'split-stream', name: 'Split Stream', budget: 4,
