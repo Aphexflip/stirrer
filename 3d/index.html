@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Rotatable 3D model of a linear electromagnetic stirrer in a molten aluminum bath. A finite-width stirrer drives real cross-flow that a 2D model cannot show.">
+<meta property="og:title" content="Furnace Stirrer 3D">
+<meta property="og:description" content="Orbit a 3D bath of molten aluminum and watch an alloy addition mix under a traveling magnetic field.">
+<title>Furnace Stirrer 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: title row, one large orbitable 3D view, then controls beside readouts. Single dark look on purpose (furnace room). */
+:root {
+  --bg: #0a0807;
+  --page: #0d0b0a;
+  --fg: #f3e9dc;
+  --muted: #9a8a7a;
+  --line: #3a2e26;
+  --ember: #ff6a13;
+  --pos: #5ad1ff;
+  --panel: #171210;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body { margin: 0; background: var(--page); color: var(--fg); font-family: var(--mono); font-size: 13px; padding-inline: 16px; padding-block: 16px 32px; }
+.wrap { max-width: 1100px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: .88; letter-spacing: .01em; text-transform: uppercase; margin: 0; }
+h1 span { color: var(--ember); }
+.sub { color: var(--muted); max-width: 54ch; margin: 0; line-height: 1.5; }
+.sub a { color: var(--pos); }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 300px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg); overflow: hidden; touch-action: none; }
+@media (max-width: 720px) { .stage { aspect-ratio: 4 / 3; } }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+.stage canvas.drag { cursor: grabbing; }
+.axes { position: absolute; left: 12px; bottom: 10px; margin: 0; color: var(--muted); font-size: 11px; letter-spacing: .06em; pointer-events: none; }
+.nogl { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--muted); line-height: 1.6; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 720px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row { display: grid; grid-template-columns: 104px minmax(0, 1fr) 72px; align-items: center; gap: 10px; }
+label, .lab { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; color: var(--muted); }
+input[type=range] { width: 100%; min-width: 0; accent-color: var(--ember); }
+output { text-align: right; font-variant-numeric: tabular-nums; }
+select, button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+select { background: var(--panel); }
+button:hover, select:hover { border-color: var(--ember); }
+button[aria-pressed="true"] { background: var(--ember); border-color: var(--ember); color: #160a03; font-weight: 500; }
+:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 420px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat b { display: block; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.stat b small { font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 3px; }
+.hero b { color: var(--ember); }
+.regime { margin: 0; color: var(--muted); line-height: 1.5; }
+#spark { width: 100%; height: 44px; display: block; }
+details { color: var(--muted); line-height: 1.55; }
+details summary { cursor: pointer; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; }
+details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Furnace <span>Stirrer</span> 3D</h1>
+    <p class="sub">Drag to orbit, scroll or pinch to zoom. The glowing layer is an alloy addition sitting on top of the melt. The stirrer under the floor covers only part of the bath width, so the melt also flows sideways. <a href="/furnace/">2D side view</a> · <a href="/">Vortex toy</a></p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="Rotatable 3D view of the molten aluminum bath, the alloy layer, flow tracers and the stirrer under the floor"></canvas>
+    <p class="axes">x field direction · y up · z across the bath</p>
+    <div class="nogl" id="nogl">This view needs WebGL 2. Try a recent Chrome, Safari or Firefox, or the 2D side view.</div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="48"><output id="freqOut">5.0 Hz</output></div>
+      <div class="row"><label for="power">Power</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
+      <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="50" max="100" step="5" value="80"><output id="depthOut">0.80 m</output></div>
+      <div class="row"><label for="zw">Stirrer width</label><input id="zw" type="range" min="20" max="100" step="10" value="60"><output id="zwOut">60 %</output></div>
+      <div class="row"><label for="gain">Alloy opacity</label><input id="gain" type="range" min="1" max="10" step="0.5" value="3"><output id="gainOut">3.0</output></div>
+      <div class="row"><label for="rev">Reversal</label>
+        <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
+      <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button><button id="resetView">Reset view</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="stats">
+        <div class="stat hero"><span class="lab">Homogeneity</span><b id="sHomog">0<small>%</small></b></div>
+        <div class="stat"><span class="lab">To 95%</span><b id="sT95">n/a</b></div>
+        <div class="stat"><span class="lab">Sim time</span><b id="sTime">0<small>s</small></b></div>
+        <div class="stat"><span class="lab">Skin depth</span><b id="sDelta">0<small>mm</small></b></div>
+        <div class="stat"><span class="lab">Peak flow</span><b id="sPeak">0<small>m/s</small></b></div>
+        <div class="stat"><span class="lab">Cross flow</span><b id="sCross">0<small>m/s</small></b></div>
+      </div>
+      <canvas id="spark" aria-label="Homogeneity over time"></canvas>
+      <p class="regime" id="regime"></p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Model notes</summary>
+    <ul>
+      <li>Force: a traveling-wave push along the floor under the left half of the bath, decaying with height as exp(−2d/δ). Skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate). The cyan box over the stirrer is drawn δ tall.</li>
+      <li>Flow: 3D incompressible solver (stable fluids) on a 56 × 22 × 28 grid with 36 mm cells. Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence.</li>
+      <li>At high frequency δ is smaller than one cell. The solver keeps the total thrust but cannot resolve the thin layer, so treat high-frequency results as rough.</li>
+      <li>Cross flow is the fastest motion across the bath width. It comes from the stirrer being narrower than the bath and from friction on the side walls. A 2D model has none.</li>
+      <li>Wall force density is held constant. Frequency changes penetration depth only. Stirrer width, bath length and the 0.20 m pole pitch are assumptions, not machine data.</li>
+      <li>Left out: free-surface motion, thermal convection, the refractory gap, and any calibration against real installations. Qualitative only. Do not use it to size or predict a real installation.</li>
+    </ul>
+  </details>
+</div>
+
+<script src="three.min.js"></script>
+<script src="sim3d.js?v=1"></script>
+<script>
+(function () {
+  var L = 2.0, WZ = 1.0, NX = 56, DX = L / NX, NZ = Math.round(WZ / DX), SIGMA = 3.8e6, STEP = 0.1, TAU = 0.20;
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage'), canvas = $('gl'), spark = $('spark'), sctx = spark.getContext('2d');
+
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+    if (!renderer.capabilities.isWebGL2) throw new Error('webgl2');
+  } catch (e) { $('nogl').style.display = 'flex'; canvas.style.display = 'none'; return; }
+  renderer.setClearColor(0x0a0807, 1);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(38, 1, 0.05, 50);
+
+  var sim, ny, H, depth = 0.8, freq = 5, power = 1, zw = 0.6, gain = 3, revT = 0, playing = true;
+  var dirS = 1, stepCount = 0, hist = [], t95 = null, stats = null, wallPhase = 0;
+  var bathGroup, stirGroup, volMesh, volTex, volData, lineMesh, forceBox, teeth = [], arrow;
+  var tracers = [], NT = 480, TL = 22, trailPos, trailCol, lineGeo, ringHead = 0;
+  var view = { theta: 0.75, phi: 1.12, r: 2.9, auto: true };
+
+  function freqFromSlider(s) { return 0.5 * Math.pow(120, s / 100); }
+
+  var VERT = [
+    'varying vec3 vOrigin; varying vec3 vDir; uniform vec3 uCenter;',
+    'void main() {',
+    '  vOrigin = cameraPosition - uCenter;',
+    '  vDir = position - vOrigin;',
+    '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+    '}'
+  ].join('\n');
+  var FRAG = [
+    'precision highp float; precision highp sampler3D;',
+    'uniform sampler3D uMap; uniform vec3 uSize; uniform float uGain;',
+    'varying vec3 vOrigin; varying vec3 vDir;',
+    'vec2 hitBox(vec3 o, vec3 d, vec3 h) {',
+    '  vec3 inv = 1.0 / d; vec3 t0 = (-h - o) * inv; vec3 t1 = (h - o) * inv;',
+    '  vec3 tmin = min(t0, t1); vec3 tmax = max(t0, t1);',
+    '  return vec2(max(max(tmin.x, tmin.y), tmin.z), min(min(tmax.x, tmax.y), tmax.z));',
+    '}',
+    'vec3 ramp(float c) {',
+    '  vec3 a = vec3(0.42, 0.15, 0.05); vec3 b = vec3(0.78, 0.28, 0.07);',
+    '  vec3 m = vec3(1.0, 0.62, 0.20); vec3 d = vec3(1.0, 0.86, 0.58);',
+    '  if (c < 0.3) return mix(a, b, c / 0.3);',
+    '  if (c < 0.65) return mix(b, m, (c - 0.3) / 0.35);',
+    '  return mix(m, d, (c - 0.65) / 0.35);',
+    '}',
+    'void main() {',
+    '  vec3 rd = normalize(vDir);',
+    '  vec2 t = hitBox(vOrigin, rd, uSize * 0.5);',
+    '  if (t.x > t.y) discard;',
+    '  t.x = max(t.x, 0.0);',
+    '  float dt = (t.y - t.x) / float(STEPS);',
+    '  vec3 p = vOrigin + rd * (t.x + dt * 0.5);',
+    '  vec4 acc = vec4(0.0);',
+    '  for (int i = 0; i < STEPS; i++) {',
+    '    float c = clamp(texture(uMap, p / uSize + 0.5).r, 0.0, 1.0);',
+    '    float dens = uGain * c * c + 0.09;',
+    '    float a = 1.0 - exp(-dens * dt * 6.0);',
+    '    acc.rgb += (1.0 - acc.a) * a * ramp(c);',
+    '    acc.a += (1.0 - acc.a) * a;',
+    '    if (acc.a > 0.97) break;',
+    '    p += rd * dt;',
+    '  }',
+    '  gl_FragColor = vec4(acc.rgb, acc.a);',
+    '}'
+  ].join('\n');
+
+  function disposeGroup(g) {
+    if (!g) return;
+    g.traverse(function (o) {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    });
+    scene.remove(g);
+  }
+
+  function buildBath() {
+    disposeGroup(bathGroup);
+    bathGroup = new THREE.Group();
+    // volume
+    volData = new Uint8Array(NX * ny * NZ);
+    volTex = new THREE.DataTexture3D(volData, NX, ny, NZ);
+    volTex.format = THREE.RedFormat; volTex.type = THREE.UnsignedByteType;
+    volTex.minFilter = THREE.LinearFilter; volTex.magFilter = THREE.LinearFilter;
+    volTex.wrapS = volTex.wrapT = volTex.wrapR = THREE.ClampToEdgeWrapping;
+    volTex.unpackAlignment = 1; volTex.needsUpdate = true;
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { uMap: { value: volTex }, uSize: { value: new THREE.Vector3(L, H, WZ) }, uGain: { value: gain }, uCenter: { value: new THREE.Vector3(0, H / 2, 0) } },
+      vertexShader: VERT, fragmentShader: FRAG, defines: { STEPS: 110 },
+      side: THREE.BackSide, transparent: true, depthWrite: false,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor
+    });
+    volMesh = new THREE.Mesh(new THREE.BoxGeometry(L, H, WZ), mat);
+    volMesh.position.set(0, H / 2, 0); volMesh.renderOrder = 2;
+    bathGroup.add(volMesh);
+    // walls as edges
+    var edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(L, H, WZ)), new THREE.LineBasicMaterial({ color: 0x8a5e42 }));
+    edges.position.set(0, H / 2, 0); bathGroup.add(edges);
+    // floor plate
+    var floor = new THREE.Mesh(new THREE.BoxGeometry(L + 0.08, 0.04, WZ + 0.08), new THREE.MeshBasicMaterial({ color: 0x2a1e17, transparent: true, opacity: 0.5, depthWrite: false }));
+    floor.position.set(0, -0.02, 0); bathGroup.add(floor);
+    // ground grid under the furnace
+    var grid = new THREE.GridHelper(6, 24, 0x3a2e26, 0x1f1815); grid.position.y = -0.34; bathGroup.add(grid);
+    // force zone: box delta tall over the stirrer
+    forceBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x5ad1ff, transparent: true, opacity: 0.16, depthWrite: false }));
+    forceBox.renderOrder = 1; bathGroup.add(forceBox);
+    scene.add(bathGroup);
+    buildStirrer();
+    updateForceBox();
+  }
+
+  function buildStirrer() {
+    if (stirGroup) { stirGroup.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); bathGroup.remove(stirGroup); }
+    stirGroup = new THREE.Group(); teeth = [];
+    var x0 = -L / 2 + sim.winA * L, x1 = -L / 2 + sim.winB * L, w = x1 - x0;
+    var z0 = -WZ / 2 + sim.zA * WZ, z1 = -WZ / 2 + sim.zB * WZ, d = z1 - z0;
+    var core = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), new THREE.MeshBasicMaterial({ color: 0x1e1714 }));
+    core.position.set((x0 + x1) / 2, -0.11, (z0 + z1) / 2); stirGroup.add(core);
+    var n = 14, tw = w / n;
+    for (var i = 0; i < n; i++) {
+      var m = new THREE.MeshBasicMaterial({ color: 0x5ad1ff });
+      var t = new THREE.Mesh(new THREE.BoxGeometry(tw * 0.7, 0.05, d * 0.94), m);
+      t.position.set(x0 + tw * (i + 0.5), -0.055, (z0 + z1) / 2); stirGroup.add(t); teeth.push(m);
+    }
+    arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3((x0 + x1) / 2, -0.22, (z0 + z1) / 2), 0.5, 0x9a8a7a, 0.12, 0.07);
+    stirGroup.add(arrow);
+    bathGroup.add(stirGroup);
+  }
+
+  function updateForceBox() {
+    if (!forceBox) return;
+    var x0 = -L / 2 + sim.winA * L, x1 = -L / 2 + sim.winB * L;
+    var z0 = -WZ / 2 + sim.zA * WZ, z1 = -WZ / 2 + sim.zB * WZ;
+    var h = Math.min(H, sim.delta);
+    forceBox.scale.set(x1 - x0, h, z1 - z0);
+    forceBox.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2);
+  }
+
+  function makeSim() {
+    ny = Math.round(depth / DX); H = ny * DX;
+    sim = new EMS3.Fluid3D(NX, ny, NZ, DX);
+    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA;
+    sim.zA = 0.5 - zw / 2; sim.zB = 0.5 + zw / 2; sim.buildProfile();
+    buildBath(); buildTracers(); resetMetrics(); resize();
+    view.target = new THREE.Vector3(0, H * 0.45, 0);
+  }
+
+  function spawnTracer(t) {
+    t.x = 1 + Math.random() * (NX - 1); t.y = 1 + Math.random() * (ny - 1); t.z = 1 + Math.random() * (NZ - 1);
+    t.life = 120 + Math.random() * 260;
+    var b = t.id * TL * 3, p = cellToWorld(t.x, t.y, t.z);
+    for (var s = 0; s < TL; s++) { trailPos[b + s * 3] = p[0]; trailPos[b + s * 3 + 1] = p[1]; trailPos[b + s * 3 + 2] = p[2]; }
+  }
+  function cellToWorld(x, y, z) { return [-L / 2 + (x - 0.5) * DX, (y - 0.5) * DX, -WZ / 2 + (z - 0.5) * DX]; }
+
+  function buildTracers() {
+    if (lineMesh) { scene.remove(lineMesh); lineGeo.dispose(); lineMesh.material.dispose(); }
+    trailPos = new Float32Array(NT * TL * 3);
+    var segVerts = NT * (TL - 1) * 2;
+    lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(segVerts * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    lineGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(segVerts * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    lineMesh = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+    lineMesh.frustumCulled = false; lineMesh.renderOrder = 0; scene.add(lineMesh);
+    tracers = []; ringHead = 0;
+    for (var i = 0; i < NT; i++) { var t = { id: i }; spawnTracer(t); tracers.push(t); }
+    fillLines();
+  }
+
+  function fillLines() {
+    var pos = lineGeo.attributes.position.array, col = lineGeo.attributes.color.array, v = 0;
+    for (var i = 0; i < NT; i++) {
+      var b = i * TL * 3;
+      for (var s = 0; s < TL - 1; s++) {
+        var a = ((ringHead - s) % TL + TL) % TL, c = ((ringHead - s - 1) % TL + TL) % TL;
+        var f0 = Math.pow(1 - s / (TL - 1), 1.6), f1 = Math.pow(1 - (s + 1) / (TL - 1), 1.6);
+        pos[v] = trailPos[b + a * 3]; pos[v + 1] = trailPos[b + a * 3 + 1]; pos[v + 2] = trailPos[b + a * 3 + 2];
+        col[v] = 0.55 * f0; col[v + 1] = 0.84 * f0; col[v + 2] = 1.0 * f0; v += 3;
+        pos[v] = trailPos[b + c * 3]; pos[v + 1] = trailPos[b + c * 3 + 1]; pos[v + 2] = trailPos[b + c * 3 + 2];
+        col[v] = 0.55 * f1; col[v + 1] = 0.84 * f1; col[v + 2] = 1.0 * f1; v += 3;
+      }
+    }
+    lineGeo.attributes.position.needsUpdate = true; lineGeo.attributes.color.needsUpdate = true;
+  }
+
+  function resetMetrics() { hist = []; t95 = null; sim.time = 0; dirS = 1; sim.dir = 1; stats = sim.stats(); }
+
+  function stepSim() {
+    if (revT > 0) {
+      var target = (Math.floor(sim.time / revT) % 2 === 0) ? 1 : -1;
+      dirS += (target - dirS) * (1 - Math.exp(-STEP / 2));
+    } else dirS += (1 - dirS) * (1 - Math.exp(-STEP / 2));
+    sim.dir = dirS;
+    sim.step(STEP); stepCount++;
+    wallPhase += STEP * Math.min(freq, 4) * 0.35 * dirS;
+
+    ringHead = (ringHead + 1) % TL;
+    for (var i = 0; i < NT; i++) {
+      var t = tracers[i];
+      var u = sim.sample(sim.u, t.x, t.y, t.z), v = sim.sample(sim.v, t.x, t.y, t.z), w = sim.sample(sim.w, t.x, t.y, t.z);
+      var nx_ = t.x + u * STEP / DX, ny_ = t.y + v * STEP / DX, nz_ = t.z + w * STEP / DX;
+      if (nx_ < 1 || nx_ > NX || ny_ < 1 || ny_ > ny || nz_ < 1 || nz_ > NZ || --t.life < 0) { spawnTracer(t); continue; }
+      t.x = nx_; t.y = ny_; t.z = nz_;
+      var p = cellToWorld(nx_, ny_, nz_), b = i * TL * 3 + ringHead * 3;
+      trailPos[b] = p[0]; trailPos[b + 1] = p[1]; trailPos[b + 2] = p[2];
+    }
+    if (stepCount % 5 === 0) {
+      stats = sim.stats();
+      hist.push([sim.time, stats.homog]); if (hist.length > 700) hist.shift();
+      if (t95 === null && stats.homog >= 0.95) t95 = sim.time;
+    }
+  }
+
+  function uploadVolume() {
+    var c = sim.c, sy = sim.sy, sz = sim.sz, o = 0;
+    for (var k = 1; k <= NZ; k++) for (var j = 1; j <= ny; j++) {
+      var r = sy * j + sz * k;
+      for (var i = 1; i <= NX; i++) { var v = c[i + r]; volData[o++] = v <= 0 ? 0 : v >= 1 ? 255 : (v * 255 + 0.5) | 0; }
+    }
+    volTex.needsUpdate = true;
+  }
+
+  function updateStirrerVisual() {
+    var n = teeth.length, lam = 2 * TAU, w = (sim.winB - sim.winA) * L;
+    for (var i = 0; i < n; i++) {
+      var xr = i / n * (w / lam);
+      var a = 0.15 + 0.85 * Math.max(0, Math.sin(2 * Math.PI * (xr - wallPhase)));
+      var k = a * (0.35 + 0.65 * power);
+      teeth[i].color.setRGB(0.35 * k, 0.82 * k, 1.0 * k);
+    }
+    arrow.setDirection(new THREE.Vector3(dirS >= 0 ? 1 : -1, 0, 0));
+    var cx = -L / 2 + (sim.winA + sim.winB) / 2 * L;
+    arrow.position.x = cx - (dirS >= 0 ? 0.25 : -0.25);
+  }
+
+  function updateCamera() {
+    if (view.auto) view.theta += 0.0022;
+    var s = Math.sin(view.phi), t = view.target;
+    camera.position.set(t.x + view.r * s * Math.sin(view.theta), t.y + view.r * Math.cos(view.phi), t.z + view.r * s * Math.cos(view.theta));
+    camera.lookAt(t);
+  }
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), sw = spark.clientWidth || 300;
+    spark.width = Math.round(sw * dpr); spark.height = Math.round(44 * dpr); sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawSpark() {
+    var sw = spark.clientWidth || 300, sh = 44;
+    sctx.clearRect(0, 0, sw, sh);
+    sctx.strokeStyle = '#3a2e26'; sctx.lineWidth = 1; sctx.setLineDash([3, 4]);
+    var y95 = sh - 4 - 0.95 * (sh - 8);
+    sctx.beginPath(); sctx.moveTo(0, y95); sctx.lineTo(sw, y95); sctx.stroke(); sctx.setLineDash([]);
+    if (hist.length < 2) return;
+    var tmax = Math.max(120, hist[hist.length - 1][0]);
+    sctx.strokeStyle = '#ff8c22'; sctx.lineWidth = 2; sctx.beginPath();
+    for (var i = 0; i < hist.length; i++) {
+      var x = hist[i][0] / tmax * (sw - 2) + 1, y = sh - 4 - hist[i][1] * (sh - 8);
+      if (i === 0) sctx.moveTo(x, y); else sctx.lineTo(x, y);
+    }
+    sctx.stroke();
+  }
+
+  function readouts() {
+    $('sHomog').innerHTML = Math.round(stats.homog * 100) + '<small>%</small>';
+    $('sT95').innerHTML = t95 === null ? 'n/a' : Math.round(t95) + '<small>s</small>';
+    $('sTime').innerHTML = Math.round(sim.time) + '<small>s</small>';
+    $('sDelta').innerHTML = (sim.delta * 1000).toFixed(0) + '<small>mm</small>';
+    $('sPeak').innerHTML = stats.vmax.toFixed(2) + '<small>m/s</small>';
+    $('sCross').innerHTML = stats.crossmax.toFixed(2) + '<small>m/s</small>';
+    var r = sim.delta / H;
+    var txt = r < 0.08 ? 'Skin-limited. The force stays in a thin layer at the floor, so the bulk is dragged by a wall jet.'
+      : r < 0.5 ? 'Bulk drive. The force reaches well into the bath and sets up a recirculation loop.'
+      : 'Deep penetration. The force fills most of the bath depth.';
+    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s.';
+    if ($('regime').textContent !== txt) $('regime').textContent = txt;
+  }
+
+  var frames = 0;
+  function frame() {
+    if (playing) stepSim();
+    uploadVolume(); updateStirrerVisual(); fillLines(); updateCamera();
+    renderer.render(scene, camera);
+    if (frames++ % 4 === 0) { readouts(); drawSpark(); }
+    requestAnimationFrame(frame);
+  }
+
+  // orbit controls
+  var pts = {}, lastPinch = 0;
+  canvas.addEventListener('pointerdown', function (e) {
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY }; view.auto = false; canvas.classList.add('drag');
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    lastPinch = 0;
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pts[e.pointerId]; if (!p) return;
+    var ids = Object.keys(pts);
+    if (ids.length === 1) {
+      view.theta -= (e.clientX - p.x) * 0.006;
+      view.phi = Math.max(0.15, Math.min(Math.PI * 0.62, view.phi - (e.clientY - p.y) * 0.006));
+    } else if (ids.length === 2) {
+      pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var a = pts[ids[0]], b = pts[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lastPinch) view.r = Math.max(1.6, Math.min(7, view.r * lastPinch / d));
+      lastPinch = d; return;
+    }
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+  });
+  function endPointer(e) { delete pts[e.pointerId]; lastPinch = 0; if (!Object.keys(pts).length) canvas.classList.remove('drag'); }
+  canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('wheel', function (e) { e.preventDefault(); view.auto = false; view.r = Math.max(1.6, Math.min(7, view.r * Math.exp(e.deltaY * 0.001))); }, { passive: false });
+
+  // controls
+  function setFreq() {
+    freq = freqFromSlider(+$('freq').value); $('freqOut').textContent = freq.toFixed(1) + ' Hz';
+    if (sim) { sim.params.freq = freq; sim.buildProfile(); updateForceBox(); }
+  }
+  $('freq').addEventListener('input', setFreq);
+  $('power').addEventListener('input', function () { power = +this.value / 100; $('powerOut').textContent = this.value + ' %'; sim.params.power = power; });
+  $('depth').addEventListener('input', function () { depth = +this.value / 100; $('depthOut').textContent = depth.toFixed(2) + ' m'; makeSim(); });
+  $('zw').addEventListener('input', function () {
+    zw = +this.value / 100; $('zwOut').textContent = this.value + ' %';
+    sim.zA = 0.5 - zw / 2; sim.zB = 0.5 + zw / 2; sim.buildProfile(); buildStirrer(); updateForceBox();
+  });
+  $('gain').addEventListener('input', function () { gain = +this.value; $('gainOut').textContent = gain.toFixed(1); volMesh.material.uniforms.uGain.value = gain; });
+  $('rev').addEventListener('change', function () { revT = +this.value; });
+  $('play').addEventListener('click', function () { playing = !playing; this.setAttribute('aria-pressed', String(!playing)); this.textContent = playing ? 'Pause' : 'Play'; });
+  $('alloy').addEventListener('click', function () { sim.resetDye(0.25); hist = []; t95 = null; sim.time = 0; stats = sim.stats(); });
+  $('resetView').addEventListener('click', function () { view.theta = 0.75; view.phi = 1.12; view.r = 2.9; view.auto = true; });
+  window.addEventListener('resize', resize);
+
+  setFreq();
+  makeSim();
+  for (var w = 0; w < 20; w++) sim.step(STEP);
+  sim.time = 0; hist = []; stats = sim.stats();
+  window.__ems3 = { sim: function () { return sim; }, view: view, frames: function () { return frames; } };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
