@@ -32,7 +32,7 @@
       id: 'around-the-pillar', name: 'Around the Pillar', budget: 3,
       hint: 'A refractory pillar blocks the straight line. Route the flow around it.',
       spouts: [{ x: .18, y: .5, color: MAT.A }],
-      molds: [{ x: .74, y: .5, r: .16, color: MAT.A }],
+      molds: [{ x: .64, y: .5, r: .19, color: MAT.A }],
       obstacles: [{ x: .42, y: .22, w: .14, h: .56 }],
       par: { cost: 3, cycles: 14, area: 10 }
     },
