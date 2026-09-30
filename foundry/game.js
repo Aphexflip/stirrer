@@ -17,7 +17,8 @@
   var HOLD_FRAMES = 60;   // ~1s at 60fps of sustained fill to lock a mold
   var FILL_THRESHOLD = 0.15; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
-  var JET_SPEED = 2.2;    // initial px/frame speed a spout shoots melt out at, aimed toward its mold
+  var JET_SPEED = 2.2;    // initial px/frame speed a spout shoots melt out at
+  var STREAM_LEN = 130;   // px length of the visible animated pour stream at the nozzle
   var JET_FORCE = 3.2;    // continuous outward push near a spout, like a nozzle under pressure
   var JET_RADIUS2 = 160 * 160; // how far that push reaches before fading out
   var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
@@ -126,15 +127,12 @@
 
   function jetDir(spoutIdx) {
     var s = level.spouts[spoutIdx];
-    var p0 = toPx(s.x, s.y);
-    for (var i = 0; i < level.molds.length; i++) {
-      if (level.molds[i].color === s.color) {
-        var tp = toPx(level.molds[i].x, level.molds[i].y);
-        var dx = tp.x - p0.x, dy = tp.y - p0.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
-        return { x: dx / d, y: dy / d };
-      }
-    }
-    return { x: 1, y: 0 };
+    // Aimed by the level author (degrees, 0 = right, 90 = down), NOT at the
+    // mold -- if the pour walked straight into its own mold, the puzzle
+    // would solve itself with zero coils. Default: straight into the tank.
+    var deg = (s.dir === undefined) ? 0 : s.dir;
+    var rad = deg * Math.PI / 180;
+    return { x: Math.cos(rad), y: Math.sin(rad) };
   }
 
   function spawnAt(spoutIdx) {
@@ -286,7 +284,7 @@
 
     tctx.fillStyle = reduce ? 'rgba(10,8,7,0.3)' : 'rgba(10,8,7,0.1)';
     tctx.fillRect(0, 0, W, H);
-    tctx.lineWidth = 1.3; tctx.lineCap = 'round';
+    tctx.lineWidth = 2.1; tctx.lineCap = 'round';
     ['dim', 'bright'].forEach(function (key) {
       var arr = buckets[key];
       if (!arr.length) return;
@@ -376,15 +374,32 @@
       uctx.fill(); uctx.stroke();
     });
 
-    level.spouts.forEach(function (s) {
+    level.spouts.forEach(function (s, si) {
       var p = toPx(s.x, s.y);
+      var dir = jetDir(si);
       uctx.globalAlpha = pouring ? 1 : .35;
       var g = uctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 26);
       g.addColorStop(0, s.color + 'aa'); g.addColorStop(1, s.color + '00');
       uctx.fillStyle = g; uctx.beginPath(); uctx.arc(p.x, p.y, 26, 0, 7); uctx.fill();
       uctx.fillStyle = s.color; uctx.beginPath(); uctx.arc(p.x, p.y, 5, 0, 7); uctx.fill();
-      uctx.strokeStyle = s.color; uctx.lineWidth = 1.5;
-      uctx.beginPath(); uctx.moveTo(p.x - 8, p.y - 12); uctx.lineTo(p.x, p.y - 2); uctx.lineTo(p.x + 8, p.y - 12); uctx.stroke();
+
+      if (pouring) {
+        var len = STREAM_LEN;
+        var ex = p.x + dir.x * len, ey = p.y + dir.y * len;
+        var lg = uctx.createLinearGradient(p.x, p.y, ex, ey);
+        lg.addColorStop(0, s.color + 'f0');
+        lg.addColorStop(0.65, s.color + 'a0');
+        lg.addColorStop(1, s.color + '00');
+        uctx.strokeStyle = lg; uctx.lineWidth = 10; uctx.lineCap = 'round';
+        uctx.beginPath(); uctx.moveTo(p.x, p.y); uctx.lineTo(ex, ey); uctx.stroke();
+        // a brighter flow accent scrolling down the stream's center, like current in a pour
+        var hg = uctx.createLinearGradient(p.x, p.y, ex, ey);
+        hg.addColorStop(0, '#fff8ea'); hg.addColorStop(0.65, s.color + 'c0'); hg.addColorStop(1, s.color + '00');
+        uctx.strokeStyle = hg; uctx.lineWidth = 3; uctx.lineCap = 'round';
+        uctx.setLineDash([10, 9]); uctx.lineDashOffset = -(t * 1.6) % 19;
+        uctx.beginPath(); uctx.moveTo(p.x, p.y); uctx.lineTo(ex, ey); uctx.stroke();
+        uctx.setLineDash([]);
+      }
       uctx.globalAlpha = 1;
     });
 
