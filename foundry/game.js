@@ -17,6 +17,9 @@
   var HOLD_FRAMES = 60;   // ~1s at 60fps of sustained fill to lock a mold
   var FILL_THRESHOLD = 0.15; // fillEMA needed before hold time accrues
   var CONSUME_FRAMES = 50; // how long a particle lingers in its mold before being "delivered" and recycled
+  var JET_SPEED = 2.2;    // initial px/frame speed a spout shoots melt out at, aimed toward its mold
+  var JET_FORCE = 3.2;    // continuous outward push near a spout, like a nozzle under pressure
+  var JET_RADIUS2 = 160 * 160; // how far that push reaches before fading out
   var MAX_LIFE = 9000;    // hard respawn cap so a lost particle can't wander forever (transit can legitimately take 20-30s+)
 
   var LEVELS = [
@@ -93,6 +96,7 @@
   var resetBtn = document.getElementById('resetRun');
   var clearBtn = document.getElementById('clearCoils');
   var levelsBtn = document.getElementById('levelsBtn');
+  var pourBtn = document.getElementById('pourToggle');
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var W = 0, H = 0, dpr = 1, pad = 20, innerW = 1, innerH = 1;
@@ -100,6 +104,7 @@
   var coils = [], particles = [], moldState = [];
   var runFrames = 0, solved = false;
   var selected = -1, drag = null;
+  var pouring = true;
 
   function toPx(nx, ny) { return { x: pad + nx * innerW, y: pad + ny * innerH }; }
   function obstaclePx(o) { return { x: pad + o.x * innerW, y: pad + o.y * innerH, w: o.w * innerW, h: o.h * innerH }; }
@@ -119,12 +124,28 @@
     return Math.max(600, Math.min(2200, Math.round(W * H / 260)));
   }
 
+  function jetDir(spoutIdx) {
+    var s = level.spouts[spoutIdx];
+    var p0 = toPx(s.x, s.y);
+    for (var i = 0; i < level.molds.length; i++) {
+      if (level.molds[i].color === s.color) {
+        var tp = toPx(level.molds[i].x, level.molds[i].y);
+        var dx = tp.x - p0.x, dy = tp.y - p0.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+        return { x: dx / d, y: dy / d };
+      }
+    }
+    return { x: 1, y: 0 };
+  }
+
   function spawnAt(spoutIdx) {
     var s = level.spouts[spoutIdx];
     var p0 = toPx(s.x, s.y);
+    var j = jetDir(spoutIdx);
+    var wobble = (Math.random() - .5) * 0.7;
     return {
       x: p0.x + (Math.random() - .5) * 6, y: p0.y + (Math.random() - .5) * 6,
-      px: p0.x, py: p0.y, vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6,
+      px: p0.x, py: p0.y,
+      vx: j.x * JET_SPEED - j.y * wobble, vy: j.y * JET_SPEED + j.x * wobble,
       color: s.color, spout: spoutIdx, life: MAX_LIFE * (.4 + Math.random() * .6), consumeT: 0
     };
   }
@@ -136,6 +157,9 @@
     selected = -1; drag = null;
     runFrames = 0; solved = false;
     t = 0;
+    pouring = true;
+    pourBtn.setAttribute('aria-pressed', 'true');
+    pourBtn.textContent = 'Pour on';
     moldState = level.molds.map(function () { return { fillEMA: 0, hold: 0, locked: false }; });
     winPanel.hidden = true;
     hintEl.textContent = level.hint;
@@ -205,6 +229,8 @@
     var mp = level.molds.map(function (m) { return { p: toPx(m.x, m.y), r: m.r * Math.min(innerW, innerH), color: m.color }; });
     var tankArea = innerW * innerH;
     var moldCounts = mp.map(function () { return 0; });
+    var spoutPx = level.spouts.map(function (s) { return toPx(s.x, s.y); });
+    var spoutJet = level.spouts.map(function (s, idx) { return jetDir(idx); });
 
     var buckets = { dim: [], bright: [] };
     for (var i = 0; i < particles.length; i++) {
@@ -215,6 +241,13 @@
         var d2 = dx * dx + dy * dy + 1;
         var f = G * coils[j].s * (0.5 + 0.5 * Math.exp(-d2 / (c2 * 25))) / (d2 + c2);
         tx += -dy * f; ty += dx * f;
+      }
+      if (pouring) {
+        var sp0 = spoutPx[p.spout], sj = spoutJet[p.spout];
+        var jdx = p.x - sp0.x, jdy = p.y - sp0.y;
+        var jd2 = jdx * jdx + jdy * jdy;
+        var jf = JET_FORCE * Math.exp(-jd2 / JET_RADIUS2);
+        tx += sj.x * jf; ty += sj.y * jf;
       }
       tx += 0.10 * Math.sin(p.y * 0.017 + t * 0.011);
       ty += 0.10 * Math.cos(p.x * 0.017 - t * 0.009);
@@ -236,7 +269,7 @@
           moldCounts[k]++;
           inMold = true;
           p.consumeT++;
-          if (p.consumeT > CONSUME_FRAMES) {
+          if (pouring && p.consumeT > CONSUME_FRAMES) {
             var q = spawnAt(p.spout);
             for (var kk in q) p[kk] = q[kk];
           }
@@ -245,7 +278,7 @@
       }
       if (!inMold) p.consumeT = Math.max(0, p.consumeT - 1);
 
-      if (--p.life < 0) { var q2 = spawnAt(p.spout); for (var kk2 in q2) p[kk2] = q2[kk2]; }
+      if (pouring && --p.life < 0) { var q2 = spawnAt(p.spout); for (var kk2 in q2) p[kk2] = q2[kk2]; }
 
       var sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
       (sp > 1.1 ? buckets.bright : buckets.dim).push(p);
@@ -345,12 +378,14 @@
 
     level.spouts.forEach(function (s) {
       var p = toPx(s.x, s.y);
+      uctx.globalAlpha = pouring ? 1 : .35;
       var g = uctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 26);
       g.addColorStop(0, s.color + 'aa'); g.addColorStop(1, s.color + '00');
       uctx.fillStyle = g; uctx.beginPath(); uctx.arc(p.x, p.y, 26, 0, 7); uctx.fill();
       uctx.fillStyle = s.color; uctx.beginPath(); uctx.arc(p.x, p.y, 5, 0, 7); uctx.fill();
       uctx.strokeStyle = s.color; uctx.lineWidth = 1.5;
       uctx.beginPath(); uctx.moveTo(p.x - 8, p.y - 12); uctx.lineTo(p.x, p.y - 2); uctx.lineTo(p.x + 8, p.y - 12); uctx.stroke();
+      uctx.globalAlpha = 1;
     });
 
     level.molds.forEach(function (m, i) {
@@ -479,6 +514,11 @@
   });
   clearBtn.addEventListener('click', function () { coils = []; selected = -1; updateHUD(); });
   levelsBtn.addEventListener('click', openLevelSelect);
+  pourBtn.addEventListener('click', function () {
+    pouring = !pouring;
+    pourBtn.setAttribute('aria-pressed', String(pouring));
+    pourBtn.textContent = pouring ? 'Pour on' : 'Pour off';
+  });
 
   function openLevelSelect() {
     winPanel.hidden = true;

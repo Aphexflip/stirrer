@@ -52,6 +52,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .controls { display: flex; gap: 12px 20px; align-items: center; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
 button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
 button:hover { border-color: var(--ember); }
+button[aria-pressed="false"] { color: var(--muted); border-style: dashed; }
 :focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
 .stats { display: flex; gap: 14px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stats b { color: var(--fg); font-weight: 500; }
@@ -95,6 +96,7 @@ button:hover { border-color: var(--ember); }
 
   <div class="controls">
     <button id="levelsBtn">Levels</button>
+    <button id="pourToggle" aria-pressed="true">Pour on</button>
     <button id="resetRun">Reset run</button>
     <button id="clearCoils">Clear coils</button>
     <div class="stats"><span>Coils <b id="coilStat">0/0</b></span><span>Time <b id="timer">0.0s</b></span></div>
