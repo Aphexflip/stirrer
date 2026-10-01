@@ -21,8 +21,9 @@
     this.u0 = F(); this.v0 = F(); this.w0 = F();
     this.c = F(); this.c0 = F(); this.p = F(); this.div = F();
     this.wx = F(); this.wy = F(); this.wz = F(); this.wm = F();
+    this.sharpDye = true;
     this.time = 0; this.dir = 1;
-    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.6 };
+    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.6, pitch: 0.20, usePitch: false };
     this.winA = 0.08; this.winB = 0.50; this.zA = 0.20; this.zB = 0.80;
     this.buildProfile();
     this.resetDye(0.25);
@@ -32,11 +33,19 @@
     var nx = this.nx, ny = this.ny, nz = this.nz, dx = this.dx;
     var delta = skinDepth(this.params.freq, this.params.sigma);
     this.delta = delta;
+    // Force decay rate a (1/m): skin depth only, or travelling field of pole pitch tau in a conductor:
+    // alpha^2 = k^2 + i*2/delta^2 with k = pi/tau; the force falls as exp(-2*Re(alpha)*d).
+    var a = 1 / delta;
+    if (this.params.usePitch) {
+      var k2 = Math.pow(Math.PI / this.params.pitch, 2), q = 2 / (delta * delta);
+      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
+    }
+    this.pen = 1 / a;   // 1/a is the e-folding depth of the force amplitude measure used for the readout
     this.prof = new Float32Array(ny + 2);
     for (var j = 1; j <= ny; j++) {
       var d0 = (j - 1) * dx, d1 = j * dx;
       // cell-averaged force so total thrust is kept even when delta is under-resolved
-      this.prof[j] = (delta / 2) * (Math.exp(-2 * d0 / delta) - Math.exp(-2 * d1 / delta)) / dx;
+      this.prof[j] = (delta / 2) * (Math.exp(-2 * d0 * a) - Math.exp(-2 * d1 * a)) / dx;
     }
     this.winX = new Float32Array(nx + 2);
     var a = this.winA * nx, b = this.winB * nx, e = 0.06 * nx;
@@ -154,6 +163,47 @@
     }
   };
 
+
+  /* Dye advection with MacCormack correction (forward-backward error compensation)
+     and a local min/max limiter. Much less numerical diffusion than plain semi-Lagrangian. */
+  Fluid3D.prototype.advectMC = function (d, d0, dt) {
+    var nx = this.nx, ny = this.ny, nz = this.nz, sy = this.sy, sz = this.sz, n = d.length;
+    if (!this.cf) { this.cf = new Float32Array(n); this.lo = new Float32Array(n); this.hi = new Float32Array(n); }
+    var cf = this.cf, lo = this.lo, hi = this.hi, u = this.u, v = this.v, w = this.w, k0 = dt / this.dx, i, j, k;
+    for (k = 1; k <= nz; k++) for (j = 1; j <= ny; j++) for (i = 1; i <= nx; i++) {
+      var id = i + sy * j + sz * k;
+      var x = i - k0 * u[id], y = j - k0 * v[id], z = k - k0 * w[id];
+      if (x < 0.5) x = 0.5; else if (x > nx + 0.5) x = nx + 0.5;
+      if (y < 0.5) y = 0.5; else if (y > ny + 0.5) y = ny + 0.5;
+      if (z < 0.5) z = 0.5; else if (z > nz + 0.5) z = nz + 0.5;
+      var i0 = x | 0, j0 = y | 0, k0i = z | 0;
+      var fx = x - i0, fy = y - j0, fz = z - k0i, gx = 1 - fx, gy = 1 - fy, gz = 1 - fz;
+      var a = i0 + sy * j0 + sz * k0i;
+      var c000 = d0[a], c100 = d0[a + 1], c010 = d0[a + sy], c110 = d0[a + sy + 1];
+      var c001 = d0[a + sz], c101 = d0[a + sz + 1], c011 = d0[a + sz + sy], c111 = d0[a + sz + sy + 1];
+      cf[id] = gz * (gy * (gx * c000 + fx * c100) + fy * (gx * c010 + fx * c110)) +
+               fz * (gy * (gx * c001 + fx * c101) + fy * (gx * c011 + fx * c111));
+      lo[id] = Math.min(c000, c100, c010, c110, c001, c101, c011, c111);
+      hi[id] = Math.max(c000, c100, c010, c110, c001, c101, c011, c111);
+    }
+    this.setBnd(0, cf);
+    for (k = 1; k <= nz; k++) for (j = 1; j <= ny; j++) for (i = 1; i <= nx; i++) {
+      var q = i + sy * j + sz * k;
+      var x2 = i + k0 * u[q], y2 = j + k0 * v[q], z2 = k + k0 * w[q];
+      if (x2 < 0.5) x2 = 0.5; else if (x2 > nx + 0.5) x2 = nx + 0.5;
+      if (y2 < 0.5) y2 = 0.5; else if (y2 > ny + 0.5) y2 = ny + 0.5;
+      if (z2 < 0.5) z2 = 0.5; else if (z2 > nz + 0.5) z2 = nz + 0.5;
+      var p0 = x2 | 0, q0 = y2 | 0, r0 = z2 | 0;
+      var ax = x2 - p0, ay = y2 - q0, az = z2 - r0, bx = 1 - ax, by = 1 - ay, bz = 1 - az;
+      var m = p0 + sy * q0 + sz * r0;
+      var back = bz * (by * (bx * cf[m] + ax * cf[m + 1]) + ay * (bx * cf[m + sy] + ax * cf[m + sy + 1])) +
+                 az * (by * (bx * cf[m + sz] + ax * cf[m + sz + 1]) + ay * (bx * cf[m + sz + sy] + ax * cf[m + sz + sy + 1]));
+      var val = cf[q] + 0.5 * (d0[q] - back);
+      d[q] = val < lo[q] ? lo[q] : val > hi[q] ? hi[q] : val;
+    }
+    this.setBnd(0, d);
+  };
+
   Fluid3D.prototype.step = function (dt) {
     this.addForces(dt);
     this.setBnd(1, this.u); this.setBnd(2, this.v); this.setBnd(3, this.w);
@@ -164,7 +214,7 @@
     this.advect(3, this.w, this.w0, dt);
     this.project(16);
     this.c0.set(this.c);
-    this.advect(0, this.c, this.c0, dt);
+    if (this.sharpDye) this.advectMC(this.c, this.c0, dt); else this.advect(0, this.c, this.c0, dt);
     this.time += dt;
   };
 

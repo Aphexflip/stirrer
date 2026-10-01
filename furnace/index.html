@@ -83,6 +83,9 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="48"><output id="freqOut">5.0 Hz</output></div>
       <div class="row"><label for="power">Power</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
       <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="50" max="100" step="5" value="80"><output id="depthOut">0.80 m</output></div>
+      <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="100" max="400" step="10" value="200"><output id="pitchOut">200 mm</output></div>
+      <div class="row"><label for="fmodel">Field model</label>
+        <select id="fmodel"><option value="0">Skin depth only</option><option value="1">Skin depth + pole pitch</option></select><span></span></div>
       <div class="row"><label for="rev">Reversal</label>
         <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
       <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button></div>
@@ -108,14 +111,14 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <li>Force: a traveling-wave push along the floor under the left half of the bath, decaying with height as exp(−2d/δ). Skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate).</li>
       <li>Flow: 2D incompressible solver (stable fluids) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence.</li>
       <li>Wall force density is held constant. Frequency changes penetration depth only. A real machine also changes thrust with frequency, current and the gap through the refractory.</li>
-      <li>Field travel speed uses an assumed pole pitch of 0.20 m: vs = 2·τ·f.</li>
+      <li>Field travel speed vs = 2·τ·f uses the Pole pitch slider (default 0.20 m, an assumed example value). The optional Field model adds the pole-pitch limit to penetration: the force falls as exp(−2·Re α·d) with α² = (π/τ)² + 2i/δ². Total thrust is kept the same, only the depth profile changes.</li>
       <li>Left out: 3D effects, free-surface motion, thermal convection, and any calibration against machine data. Sim time runs about 5× real time.</li>
       <li>Qualitative only. Do not use it to size or predict a real installation.</li>
     </ul>
   </details>
 </div>
 
-<script src="sim.js?v=1"></script>
+<script src="sim.js?v=2"></script>
 <script>
 (function () {
   var L = 2.0, NX = 240, DX = L / NX, TAU = 0.20, SIGMA = 3.8e6;
@@ -149,7 +152,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   function makeSim() {
     var ny = Math.round(depth / DX);
     sim = new EMS.FluidSim(NX, ny, DX);
-    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA;
+    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA; sim.params.pitch = TAU; sim.params.usePitch = el('fmodel').value === '1';
     sim.buildProfile();
     off = document.createElement('canvas'); off.width = NX; off.height = ny;
     offCtx = off.getContext('2d'); img = offCtx.createImageData(NX, ny);
@@ -319,13 +322,13 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     el('sT95').innerHTML = t95 === null ? 'n/a' : Math.round(t95) + '<small>s</small>';
     el('sTime').innerHTML = Math.round(sim.time) + '<small>s</small>';
     el('sDelta').innerHTML = (sim.delta * 1000).toFixed(0) + '<small>mm</small>';
-    var r = sim.delta / depth;
+    var r = sim.pen / depth;
     el('sRatio').innerHTML = r.toFixed(2) + '<small>δ/H</small>';
     el('sPeak').innerHTML = stats.vmax.toFixed(2) + '<small>m/s</small>';
     var txt = r < 0.08 ? 'Skin-limited. The force stays in a thin layer at the floor, so the bulk is dragged by a wall jet.'
       : r < 0.5 ? 'Bulk drive. The force reaches well into the bath and sets up one large recirculation loop.'
       : 'Deep penetration. The force fills most of the bath depth.';
-    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s.';
+    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s. Force penetration ' + (sim.pen * 1000).toFixed(0) + ' mm.';
     if (el('regime').textContent !== txt) el('regime').textContent = txt;
   }
 
@@ -356,6 +359,9 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     depth = +depthIn.value / 100; el('depthOut').textContent = depth.toFixed(2) + ' m';
     makeSim();
   });
+  function applyPitch() { TAU = +el('pitch').value / 1000; el('pitchOut').textContent = el('pitch').value + ' mm'; if (sim) { sim.params.pitch = TAU; sim.params.usePitch = el('fmodel').value === '1'; sim.buildProfile();  } }
+  el('pitch').addEventListener('input', applyPitch);
+  el('fmodel').addEventListener('change', applyPitch);
   revIn.addEventListener('change', function () { revT = +revIn.value; });
   playBtn.addEventListener('click', function () {
     playing = !playing; playBtn.setAttribute('aria-pressed', String(!playing)); playBtn.textContent = playing ? 'Pause' : 'Play';

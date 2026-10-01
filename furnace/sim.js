@@ -23,7 +23,8 @@
     this.fx = new Float32Array(n); this.fy = new Float32Array(n);
     this.time = 0;
     this.dir = 1;
-    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.5 };
+    this.sharpDye = true;
+    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.5, pitch: 0.20, usePitch: false };
     this.winA = 0.08; this.winB = 0.50;
     this.buildProfile();
     this.resetDye(0.25);
@@ -35,10 +36,18 @@
     var nx = this.nx, ny = this.ny, dx = this.dx;
     var delta = skinDepth(this.params.freq, this.params.sigma);
     this.delta = delta;
+    // Decay rate a (1/m): skin depth only, or a travelling field of pole pitch tau: alpha^2 = k^2 + i*2/delta^2, k = pi/tau.
+    // Same total thrust either way (profile scaled by delta*a), only the shape changes.
+    var a = 1 / delta;
+    if (this.params.usePitch) {
+      var k2 = Math.pow(Math.PI / this.params.pitch, 2), q = 2 / (delta * delta);
+      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
+    }
+    this.pen = 1 / a;
     this.profY = new Float32Array(ny + 2);
     for (var j = 1; j <= ny; j++) {
       var d = (j - 0.5) * dx;
-      this.profY[j] = Math.exp(-2 * d / delta);
+      this.profY[j] = delta * a * Math.exp(-2 * d * a);
     }
     this.winX = new Float32Array(nx + 2);
     var a = this.winA * nx, b = this.winB * nx, e = 0.04 * nx;
@@ -118,6 +127,36 @@
     this.setBnd(b, d);
   };
 
+
+  /* MacCormack dye advection with min/max limiter: far less numerical diffusion. */
+  FluidSim.prototype.advectMC = function (d, d0, dt) {
+    var nx = this.nx, ny = this.ny, W = this.W, u = this.u, v = this.v, n = d.length, i, j;
+    if (!this.cf) { this.cf = new Float32Array(n); this.lo = new Float32Array(n); this.hi = new Float32Array(n); }
+    var cf = this.cf, lo = this.lo, hi = this.hi, k = dt / this.dx;
+    for (j = 1; j <= ny; j++) for (i = 1; i <= nx; i++) {
+      var id = i + W * j;
+      var x = i - k * u[id], y = j - k * v[id];
+      if (x < 0.5) x = 0.5; if (x > nx + 0.5) x = nx + 0.5;
+      if (y < 0.5) y = 0.5; if (y > ny + 0.5) y = ny + 0.5;
+      var i0 = x | 0, j0 = y | 0, s1 = x - i0, t1 = y - j0, s0 = 1 - s1, t0 = 1 - t1, a = i0 + W * j0;
+      var c00 = d0[a], c01 = d0[a + W], c10 = d0[a + 1], c11 = d0[a + 1 + W];
+      cf[id] = s0 * (t0 * c00 + t1 * c01) + s1 * (t0 * c10 + t1 * c11);
+      lo[id] = Math.min(c00, c01, c10, c11); hi[id] = Math.max(c00, c01, c10, c11);
+    }
+    this.setBnd(0, cf);
+    for (j = 1; j <= ny; j++) for (i = 1; i <= nx; i++) {
+      var q = i + W * j;
+      var x2 = i + k * u[q], y2 = j + k * v[q];
+      if (x2 < 0.5) x2 = 0.5; if (x2 > nx + 0.5) x2 = nx + 0.5;
+      if (y2 < 0.5) y2 = 0.5; if (y2 > ny + 0.5) y2 = ny + 0.5;
+      var p0 = x2 | 0, q0 = y2 | 0, a1 = x2 - p0, b1 = y2 - q0, a0 = 1 - a1, b0 = 1 - b1, m = p0 + W * q0;
+      var back = a0 * (b0 * cf[m] + b1 * cf[m + W]) + a1 * (b0 * cf[m + 1] + b1 * cf[m + 1 + W]);
+      var val = cf[q] + 0.5 * (d0[q] - back);
+      d[q] = val < lo[q] ? lo[q] : val > hi[q] ? hi[q] : val;
+    }
+    this.setBnd(0, d);
+  };
+
   FluidSim.prototype.addForces = function (dt) {
     var nx = this.nx, ny = this.ny, W = this.W, u = this.u, v = this.v, w = this.w, dx = this.dx, i, j;
     var P = this.params;
@@ -153,7 +192,7 @@
     this.advect(2, this.v, this.v0, dt);
     this.project(20);
     this.c0.set(this.c);
-    this.advect(0, this.c, this.c0, dt);
+    if (this.sharpDye) this.advectMC(this.c, this.c0, dt); else this.advect(0, this.c, this.c0, dt);
     this.time += dt;
   };
 

@@ -90,6 +90,9 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="50" max="100" step="5" value="80"><output id="depthOut">0.80 m</output></div>
       <div class="row"><label for="zw">Stirrer width</label><input id="zw" type="range" min="20" max="100" step="10" value="60"><output id="zwOut">60 %</output></div>
       <div class="row"><label for="gain">Alloy opacity</label><input id="gain" type="range" min="1" max="10" step="0.5" value="3"><output id="gainOut">3.0</output></div>
+      <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="100" max="400" step="10" value="200"><output id="pitchOut">200 mm</output></div>
+      <div class="row"><label for="fmodel">Field model</label>
+        <select id="fmodel"><option value="0">Skin depth only</option><option value="1">Skin depth + pole pitch</option></select><span></span></div>
       <div class="row"><label for="rev">Reversal</label>
         <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
       <div class="row"><label for="quality">Resolution</label>
@@ -118,14 +121,14 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <li>Flow: 3D incompressible solver (stable fluids) on a 56 × 22 × 28 grid with 36 mm cells (Fast) or 84 × 34 × 42 with 24 mm cells (Fine). Above about 20 Hz the skin depth is only one or two Fast cells thick, and Fast over-predicts mixing; Fine is closer to converged. Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence.</li>
       <li>At high frequency δ is smaller than one cell. The solver keeps the total thrust but cannot resolve the thin layer, so treat high-frequency results as rough.</li>
       <li>Cross flow is the fastest motion across the bath width. It comes from the stirrer being narrower than the bath and from friction on the side walls. A 2D model has none.</li>
-      <li>Wall force density is held constant. Frequency changes penetration depth only. Stirrer width, bath length and the 0.20 m pole pitch are assumptions, not machine data.</li>
+      <li>Wall force density is held constant. Frequency changes penetration depth only. The optional Field model adds the pole-pitch limit (force falls as exp(−2·Re α·d), α² = (π/τ)² + 2i/δ²) at the same total thrust. Stirrer width, bath length and the default 0.20 m pole pitch are assumptions, not machine data.</li>
       <li>Left out: free-surface motion, thermal convection, the refractory gap, and any calibration against real installations. Qualitative only. Do not use it to size or predict a real installation.</li>
     </ul>
   </details>
 </div>
 
 <script src="three.min.js"></script>
-<script src="sim3d.js?v=1"></script>
+<script src="sim3d.js?v=2"></script>
 <script>
 (function () {
   var L = 2.0, WZ = 1.0, NX = 56, DX = L / NX, NZ = Math.round(WZ / DX), SIGMA = 3.8e6, STEP = 0.1, TAU = 0.20;
@@ -261,7 +264,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     if (!forceBox) return;
     var x0 = -L / 2 + sim.winA * L, x1 = -L / 2 + sim.winB * L;
     var z0 = -WZ / 2 + sim.zA * WZ, z1 = -WZ / 2 + sim.zB * WZ;
-    var h = Math.min(H, sim.delta);
+    var h = Math.min(H, sim.pen);
     forceBox.scale.set(x1 - x0, h, z1 - z0);
     forceBox.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2);
   }
@@ -270,7 +273,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     NX = +$('quality').value; DX = L / NX; NZ = Math.round(WZ / DX);
     ny = Math.round(depth / DX); H = ny * DX;
     sim = new EMS3.Fluid3D(NX, ny, NZ, DX);
-    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA;
+    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA; sim.params.pitch = TAU; sim.params.usePitch = $('fmodel').value === '1';
     sim.zA = 0.5 - zw / 2; sim.zB = 0.5 + zw / 2; sim.buildProfile();
     buildBath(); buildTracers(); resetMetrics(); resize();
     view.target = new THREE.Vector3(0, H * 0.45, 0);
@@ -402,11 +405,11 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     $('sDelta').innerHTML = (sim.delta * 1000).toFixed(0) + '<small>mm</small>';
     $('sPeak').innerHTML = stats.vmax.toFixed(2) + '<small>m/s</small>';
     $('sCross').innerHTML = stats.crossmax.toFixed(2) + '<small>m/s</small>';
-    var r = sim.delta / H;
+    var r = sim.pen / H;
     var txt = r < 0.08 ? 'Skin-limited. The force stays in a thin layer at the floor, so the bulk is dragged by a wall jet.'
       : r < 0.5 ? 'Bulk drive. The force reaches well into the bath and sets up a recirculation loop.'
       : 'Deep penetration. The force fills most of the bath depth.';
-    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s.';
+    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s. Force penetration ' + (sim.pen * 1000).toFixed(0) + ' mm.';
     if ($('regime').textContent !== txt) $('regime').textContent = txt;
   }
 
@@ -457,6 +460,9 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     sim.zA = 0.5 - zw / 2; sim.zB = 0.5 + zw / 2; sim.buildProfile(); buildStirrer(); updateForceBox();
   });
   $('gain').addEventListener('input', function () { gain = +this.value; $('gainOut').textContent = gain.toFixed(1); volMesh.material.uniforms.uGain.value = gain; });
+  function applyPitch() { TAU = +$('pitch').value / 1000; $('pitchOut').textContent = $('pitch').value + ' mm'; if (sim) { sim.params.pitch = TAU; sim.params.usePitch = $('fmodel').value === '1'; sim.buildProfile(); updateForceBox(); buildStirrer(); } }
+  $('pitch').addEventListener('input', applyPitch);
+  $('fmodel').addEventListener('change', applyPitch);
   $('quality').addEventListener('change', function () { makeSim(); });
   $('rev').addEventListener('change', function () { revT = +this.value; });
   $('play').addEventListener('click', function () { playing = !playing; this.setAttribute('aria-pressed', String(!playing)); this.textContent = playing ? 'Pause' : 'Play'; });
