@@ -161,7 +161,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 
   var sim, ny, H, depth = 0.8, freq = 0.8, power = 1, zw = 0.37, gain = 3, revT = 600, playing = true;
   var dirS = 1, stepCount = 0, hist = [], t95 = null, stats = null, wallPhase = 0;
-  var bodyH = 0.55, coilMats = [], plantGroup, pulses = [], plantOn = true, bathGroup, stirGroup, volMesh, volTex, volData, lineMesh, forceBox, teeth = [], arrow;
+  var bodyH = 0.55, ecLen = 0.5, furnParts = [], coilMats = [], plantGroup, pulses = [], plantOn = true, bathGroup, stirGroup, volMesh, volTex, volData, lineMesh, forceBox, teeth = [], arrow;
   var tracers = [], NT = 480, TL = 22, trailPos, trailCol, lineGeo, ringHead = 0;
   var view = { theta: 0.75, phi: 1.34, r: 8.7, auto: true };
 
@@ -267,53 +267,71 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     return s;
   }
   function buildEMSBody(x0, x1, z0, z1) {
+    // x0..x1 is the active zone (coils and core); the machine is longer by an end compartment each side, as on the real units.
     var w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     var sc = Math.max(0.55, Math.min(1, Math.min(w, d) / 1.2));
     var lp = 0.075 * sc, th = 0.05 * sc, top = 0.045;
-    bodyH = top + 6 * lp + 0.06;
+    var ec = Math.max(0.3, 0.2 * w); ecLen = ec;
+    bodyH = top + 6 * lp + 0.14;
+    var wt = w + 2 * ec, fz = d / 2 + 0.06;
     var mat = function (c, e) { return new THREE.MeshLambertMaterial({ color: c, emissive: e || 0x000000 }); };
-    var red = mat(0xc23a22), blue = mat(0x2a5cc0), pink = mat(0xe0386e), steel = mat(0xb9bec6), white = mat(0xe8e4dc), core = mat(0xb83320);
+    var red = mat(0xc23a22), blue = mat(0x2a5cc0), pink = mat(0xe0386e), steel = mat(0xb9bec6), white = mat(0xe8e4dc), core = mat(0xb83320), black = mat(0x15110f), yellow = mat(0xf2c21b), rust = mat(0x7a4a2a), cu = mat(0xc77a3e);
     function box(sx, sy, sz, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); o.position.set(x, y, z); stirGroup.add(o); return o; }
-    stirGroup.add(new THREE.AmbientLight(0xffffff, 0.62));
+    function cyl(r, len, m, x, y, z, axis) { var o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 16), m); if (axis === 'x') o.rotation.z = Math.PI / 2; if (axis === 'z') o.rotation.x = Math.PI / 2; o.position.set(x, y, z); stirGroup.add(o); return o; }
+    stirGroup.add(new THREE.AmbientLight(0xffffff, 0.55));
     var dl = new THREE.DirectionalLight(0xffffff, 0.75); dl.position.set(2, 6, 3); stirGroup.add(dl);
-    // tray, end walls (red with blue outer plate), low blue side rails
-    box(w + 0.12, 0.04, d + 0.12, red, cx, -bodyH, cz);
+    // tray, thick red end walls with a blue outer plate, blue frame on both long faces (top rail, low band, posts)
+    box(wt + 0.1, 0.04, d + 0.12, red, cx, -bodyH, cz);
     [-1, 1].forEach(function (sg) {
-      box(0.06, bodyH, d + 0.12, red, cx + sg * (w / 2 + 0.03), -bodyH / 2, cz);
-      box(0.02, bodyH * 0.9, d + 0.12, blue, cx + sg * (w / 2 + 0.07), -bodyH / 2 - 0.02, cz);
-      box(w + 0.12, 0.12, 0.03, blue, cx, -bodyH + 0.08, cz + sg * (d / 2 + 0.07));
+      box(0.1, bodyH, d + 0.12, red, cx + sg * (wt / 2 - 0.05), -bodyH / 2, cz);
+      box(0.025, bodyH * 0.96, d + 0.12, blue, cx + sg * (wt / 2 + 0.012), -bodyH / 2 - 0.01, cz);
+      box(0.08, bodyH * 0.8, 0.08, red, cx + sg * (wt / 2 - 0.16), -bodyH / 2, cz - d * 0.3);       // inner ribs
+      box(0.08, bodyH * 0.8, 0.08, red, cx + sg * (wt / 2 - 0.16), -bodyH / 2, cz + d * 0.3);
+      box(wt, 0.14, 0.03, blue, cx, -bodyH + 0.09, cz + sg * fz);                                      // low band
+      box(wt, 0.05, 0.03, blue, cx, -0.03, cz + sg * fz);                                              // top rail
+      [-1, 0, 1].forEach(function (f) { box(0.06, bodyH, 0.03, blue, cx + (f === 0 ? 0 : f * (w / 2 + 0.05)), -bodyH / 2, cz + sg * fz); });
+      // lifting lugs (yellow) and carriage wheels on the end plates
+      [-0.12, -bodyH + 0.22].forEach(function (yy) {
+        box(0.07, 0.13, 0.22, yellow, cx + sg * (wt / 2 + 0.06), yy, cz + d * 0.28);
+        cyl(0.03, 0.09, black, cx + sg * (wt / 2 + 0.065), yy, cz + d * 0.28, 'x');
+        cyl(0.11, 0.07, rust, cx + sg * (wt / 2 + 0.06), yy, cz - d * 0.28, 'x');
+      });
     });
-    // six racetrack coils
+    // six racetrack coils, alternating left and right from the bottom (i = 0 is the top coil)
     coilMats = [];
-    var cl = w * 0.74, cw = d * 0.86, inset = Math.max(0.06, 0.12 * Math.min(cl, cw) / 1.0);
+    var cl = w * 0.8, cw = d * 0.86, inset = Math.max(0.06, 0.12 * Math.min(cl, cw));
     var outer = racetrack(cl, cw, cw / 2), hole = racetrack(cl - 2 * inset, cw - 2 * inset, (cw - 2 * inset) / 2);
     outer.holes.push(new THREE.Path(hole.getPoints(24).reverse()));
     var geo = new THREE.ExtrudeGeometry(outer, { depth: th, bevelEnabled: false, curveSegments: 20 });
     geo.rotateX(-Math.PI / 2);
-    // counted from the bottom: left, right, left, right, left, right (i = 0 is the top coil, so it is a right one)
-    var offs = [0.13 * w, -0.13 * w, 0.13 * w, -0.13 * w, 0.13 * w, -0.13 * w];
+    var offs = [0.1 * w, -0.1 * w, 0.1 * w, -0.1 * w, 0.1 * w, -0.1 * w];
     for (var i = 0; i < 6; i++) {
-      var m = mat(i % 2 ? 0xc47434 : 0xb8652a, 0x000000); coilMats.push({ m: m, off: offs[i] });
+      var m = mat(i % 2 ? 0x8f4c1e : 0x84431a, 0x000000); coilMats.push({ m: m, off: offs[i] });
       var c = new THREE.Mesh(geo, m); c.position.set(cx + offs[i], -top - (i + 1) * lp + 0.01, cz); stirGroup.add(c);
+      // potted RTD sensor on this layer, both ends, front face
+      [-1, 1].forEach(function (sg) { box(0.06, 0.035, 0.05, black, cx + sg * (0.47 * w - 0.07), -top - (i + 1) * lp + 0.03, cz + cw / 2 + 0.07); });
     }
     // laminated core blocks and spacer bars on the face
-    var bw = w * 0.17;
+    var bw = w * 0.14;
     [-0.3, 0, 0.3].forEach(function (f) { box(bw, 0.04, d * 0.56, core, cx + f * w, -0.025, cz); });
     [-0.45, -0.15, 0.15, 0.45].forEach(function (f) { box(0.05, 0.05, d * 0.82, pink, cx + f * w, -0.03, cz); });
     [-0.3, 0, 0.3].forEach(function (f) { [-1, 1].forEach(function (sg) { box(bw * 0.7, 0.06, 0.05, white, cx + f * w, -0.055, cz + sg * d * 0.31); }); });
-    // clamp bars and pink uprights down both long faces
-    [-0.4, -0.15, 0.15, 0.4].forEach(function (f) {
+    // clamp columns (pink at the coil ends, red in the middle) with stainless studs below; steel clamp bars on top
+    [-0.47, 0, 0.47].forEach(function (f) {
       [-1, 1].forEach(function (sg) {
-        box(0.045, bodyH - 0.1, 0.035, steel, cx + f * w, -bodyH / 2 + 0.01, cz + sg * (cw / 2 + 0.03));
-        box(0.07, bodyH - 0.2, 0.04, pink, cx + f * w + 0.06, -bodyH / 2 - 0.03, cz + sg * (cw / 2 + 0.03));
+        box(0.1, bodyH - 0.2, 0.05, f === 0 ? red : pink, cx + f * w, -bodyH / 2 + 0.03, cz + sg * (cw / 2 + 0.03));
+        cyl(0.012, 0.22, steel, cx + f * w, -bodyH + 0.1, cz + sg * (cw / 2 + 0.03), 'y');
+        box(0.05, 0.02, d * 0.7, steel, cx + f * w, -0.01, cz);
       });
     });
-    // stainless end shields (half cylinders around the coil ends)
-    var rr = Math.min(cw / 2 + 0.04, w * 0.3), hh = bodyH - 0.12;
+    // copper bus pads in the lower cavity
+    [-0.2, -0.07, 0.07, 0.2].forEach(function (f) { box(0.12, 0.05, 0.14, cu, cx + f * w, -bodyH + 0.1, cz + (f < 0 ? -0.06 : 0.06)); });
+    // stainless end shields (half cylinders around the coil ends), standing in the end compartments
+    var rr = Math.min(cw / 2 + 0.04, w * 0.3), hh = bodyH - 0.16;
     var sm = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide });
     [[1, 0], [-1, Math.PI]].forEach(function (e) {
       var sh = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, hh, 28, 1, true, e[1], Math.PI), sm);
-      sh.scale.set(1, 1, (cw / 2 + 0.04) / rr); sh.position.set(cx + e[0] * (w / 2 - rr - 0.01), -0.03 - hh / 2, cz); stirGroup.add(sh);
+      sh.scale.set(1, 1, (cw / 2 + 0.04) / rr); sh.position.set(cx + e[0] * (w / 2 - rr + 0.02), -0.03 - hh / 2, cz); stirGroup.add(sh);
     });
   }
 
@@ -336,6 +354,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     function bx(w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); plantGroup.add(o); return o; }
     // ground
     var gsz = Math.max(10, 2.4 * L), grid = new THREE.GridHelper(gsz, Math.round(gsz * 3), 0x3a2e26, 0x1f1815); grid.position.set(0, gy, 0); plantGroup.add(grid);
+    var furnStart = plantGroup.children.length;
     // furnace: piers and cross beams (the stirrer pit stays clear), translucent refractory walls, rim, buckstays, door, spout
     [-1, 1].forEach(function (a) { [-1, 1].forEach(function (b) {
       bx(0.32, -0.06 - gy, 0.32, conc, a * (L / 2 - 0.35), (gy - 0.06) / 2 - 0.0, b * (WZ / 2 - 0.3));
@@ -360,6 +379,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     // pouring spout on the -x end
     var sp = bx(0.55, 0.1, 0.4, steel, -L / 2 - tk - 0.3, Hh - 0.02, 0); sp.rotation.z = -0.12;
     bx(0.55, 0.05, 0.04, dgrey, -L / 2 - tk - 0.3, Hh + 0.04, 0.2); bx(0.55, 0.05, 0.04, dgrey, -L / 2 - tk - 0.3, Hh + 0.04, -0.2);
+
+    furnParts = plantGroup.children.slice(furnStart);
 
     // ---- plant to one side (+x end): cabinets
     var xc = L / 2 + tk + 1.35, cx0 = xc;
@@ -389,11 +410,11 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     lab('MAINS DISCONNECT', mdx, gy + 1.78, mdz, 1.1);
 
     // ---- stirrer-side hardware: junction box, RTD box, blower and duct
-    var jx = x1 + 0.38, jb = bx(0.34, 0.4, 0.56, grey, jx, base + 0.36, sz); lab('JUNCTION BOX', jx + 0.1, base + 0.78, sz - 0.5, 0.9);
+    var jx = x1 + ecLen + 0.38, jb = bx(0.34, 0.4, 0.56, grey, jx, base + 0.36, sz); lab('JUNCTION BOX', jx + 0.1, base + 0.78, sz - 0.5, 0.9);
     var rb = bx(0.2, 0.2, 0.26, grey, jx + 0.02, base + 0.82, sz + 0.62); lab('RTD BOX', jx + 0.1, base + 1.08, sz + 0.62, 0.7);
-    var bl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.4, 24), dgrey); bl.rotation.z = Math.PI / 2; bl.position.set(x0 - 1.0, base + 0.32, sz + 0.3); plantGroup.add(bl);
-    var duct = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.62, 18), grey); duct.rotation.z = Math.PI / 2; duct.position.set(x0 - 0.42, base + 0.32, sz + 0.3); plantGroup.add(duct);
-    lab('BLOWER', x0 - 1.0, base + 0.78, sz + 0.3, 0.8);
+    var bl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.4, 24), dgrey); bl.rotation.z = Math.PI / 2; bl.position.set(x0 - ecLen - 1.0, base + 0.32, sz + 0.3); plantGroup.add(bl);
+    var duct = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.62, 18), grey); duct.rotation.z = Math.PI / 2; duct.position.set(x0 - ecLen - 0.42, base + 0.32, sz + 0.3); plantGroup.add(duct);
+    lab('BLOWER', x0 - ecLen - 1.0, base + 0.78, sz + 0.3, 0.8);
 
     // ---- cables
     function tube(pts, r, m) {
@@ -416,13 +437,13 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     tube([V(cx0 - 0.42, gy + 0.9, czCtl), V(cx0 - 1.0, gy + 0.3, czCtl + 0.3), V(cx0 - 1.6, tray + 0.08, sz + 0.5), V(jx + 0.7, tray + 0.08, sz + 0.6), V(jx + 0.3, base + 0.8, sz + 0.62), V(jx + 0.12, base + 0.82, sz + 0.62)], 0.012, green);
     // sensor leads from the RTD box into the coil stack
     var sl = M(0x9aa0a6);
-    for (var q = 0; q < 6; q++) tube([V(jx - 0.08, base + 0.82, sz + 0.55 - q * 0.02), V(jx - 0.2, base + 0.6 - q * 0.04, sz + 0.5), V(x1 - 0.02, base + 0.3 + q * 0.07, sz + 0.5 - q * 0.05)], 0.005, sl);
+    for (var q = 0; q < 6; q++) tube([V(jx - 0.08, base + 0.82, sz + 0.55 - q * 0.02), V(jx - 0.2, base + 0.6 - q * 0.04, sz + 0.5), V(x1 + ecLen * 0.3, base + 0.3 + q * 0.07, sz + 0.5 - q * 0.05)], 0.005, sl);
     // mains in, network between cabinets, cooling pipes, blower supply
     tube([V(mdx, gy + 1.08, mdz), V(mdx - 0.2, gy + 0.6, mdz - 0.1), V(cx0 + 0.4, gy + 2.18, czInv - 0.1), V(cx0 + 0.2, gy + 2.04, czInv)], 0.03, black);
     tube([V(cx0 - 0.3, gy + 2.04, czInv + 0.3), V(cx0 - 0.5, gy + 2.3, (czInv + czCtl) / 2), V(cx0 - 0.2, gy + 2.04, czCtl)], 0.008, M(0x3b82f6));
     tube([V(cx0 - 0.5, gy + 1.0, czCool - 0.3), V(cx0 - 0.9, gy + 0.55, (czCool + czInv) / 2), V(cx0 - 0.5, gy + 1.0, czInv + 0.4)], 0.028, M(0x3b82f6));
     tube([V(cx0 - 0.5, gy + 0.9, czCool - 0.35), V(cx0 - 1.0, gy + 0.4, (czCool + czInv) / 2), V(cx0 - 0.5, gy + 0.85, czInv + 0.4)], 0.028, M(0xdd4b39));
-    tube([V(cx0 - 0.45, gy + 0.3, czCtl - 0.1), V(cx0 - 2.0, gy + 0.06, sz - 1.7), V(x0 - 2.2, gy + 0.06, sz - 1.6), V(x0 - 1.1, base + 0.25, sz + 0.3)], 0.016, black);
+    tube([V(cx0 - 0.45, gy + 0.3, czCtl - 0.1), V(cx0 - 2.0, gy + 0.06, sz - 1.7), V(x0 - ecLen - 2.2, gy + 0.06, sz - 1.6), V(x0 - ecLen - 1.1, base + 0.25, sz + 0.3)], 0.016, black);
     plantGroup.visible = plantOn;
     bathGroup.add(plantGroup);
   }
@@ -476,6 +497,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   function setMachineView(on) {
     mviewOn = on;
     if (volMesh) volMesh.visible = !on;
+    furnParts.forEach(function (o) { o.visible = !on; });
     if (lineMesh) lineMesh.visible = !on;
     var b = $('mview'); if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
     if (!view.target) return;
