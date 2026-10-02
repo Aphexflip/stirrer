@@ -290,10 +290,11 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     outer.holes.push(new THREE.Path(hole.getPoints(24).reverse()));
     var geo = new THREE.ExtrudeGeometry(outer, { depth: th, bevelEnabled: false, curveSegments: 20 });
     geo.rotateX(-Math.PI / 2);
-    var offs = [-0.13 * w, 0, 0.13 * w];
+    // counted from the bottom: coils 1 and 2 left, 3 and 4 middle, 5 and 6 back over 1 and 2 (i = 0 is the top coil)
+    var offs = [-0.13 * w, -0.13 * w, 0, 0, -0.13 * w, -0.13 * w];
     for (var i = 0; i < 6; i++) {
-      var m = mat(i % 2 ? 0xc47434 : 0xb8652a, 0x000000); coilMats.push({ m: m, off: offs[Math.floor(i / 2)] });
-      var c = new THREE.Mesh(geo, m); c.position.set(cx + offs[Math.floor(i / 2)], -top - (i + 1) * lp + 0.01, cz); stirGroup.add(c);
+      var m = mat(i % 2 ? 0xc47434 : 0xb8652a, 0x000000); coilMats.push({ m: m, off: offs[i] });
+      var c = new THREE.Mesh(geo, m); c.position.set(cx + offs[i], -top - (i + 1) * lp + 0.01, cz); stirGroup.add(c);
     }
     // laminated core blocks and spacer bars on the face
     var bw = w * 0.17;
