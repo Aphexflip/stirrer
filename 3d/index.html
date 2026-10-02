@@ -88,11 +88,11 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <div class="grid">
     <div class="panel">
       <div class="row"><label for="machine">Machine</label>
-        <select id="machine"><option value="lf">Low-frequency bottom stirrer</option><option value="demo">Compact demo (original)</option></select><span></span></div>
-      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="53"><output id="freqOut">0.80 Hz</output></div>
+        <select id="machine"><option value="lf">Standard bottom stirrer (500 mm gap)</option><option value="demo">Compact demo (original)</option></select><span></span></div>
+      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="86"><output id="freqOut">0.80 Hz</output></div>
       <div class="row"><label for="power">Current</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
       <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="30" max="120" step="5" value="80"><output id="depthOut">0.80 m</output></div>
-      <div class="row"><label for="gap">Air gap</label><input id="gap" type="range" min="0" max="80" step="5" value="45"><output id="gapOut">0.45 m</output></div>
+      <div class="row"><label for="gap">Air gap</label><input id="gap" type="range" min="0" max="80" step="5" value="50"><output id="gapOut">0.50 m</output></div>
       <div class="row"><label for="rev">Reversal</label>
         <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="80">Every 80 s</option><option value="300">Every 5 min</option><option value="600" selected>Every 10 min</option></select><span></span></div>
       <details class="adv"><summary>Furnace and stirrer</summary>
@@ -129,7 +129,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing. The Plant button adds a generic furnace shell and supports, an inverter cabinet, a control and HMI cabinet, a cooling unit, mains disconnect, junction box, RTD box and blower, with the cable runs between them. Power cables are drawn as three pairs (one per phase), with pulses that follow the current. Layout and sizes are illustrative.</li>
+      <li>Machine presets: "Standard bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at 0.2–1 Hz through a 500 mm air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing. The Plant button adds a generic furnace shell and supports, an inverter cabinet, a control and HMI cabinet, a cooling unit, mains disconnect, junction box, RTD box and blower, with the cable runs between them. Power cables are drawn as three pairs (one per phase), with pulses that follow the current. Layout and sizes are illustrative.</li>
       <li>Force: a traveling-wave push in the melt above the stirrer. It decays with height as exp(−2·a·d), and the gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate). A melt that is already moving sees a lower slip frequency, which acts like a deeper skin depth: δ/√slip. The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
       <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force. Raising frequency or widening the gap then reduces the force that reaches the melt, and the readout shows it as a percentage of that design value.</li>
       <li>Flow: 3D incompressible solver (stable fluids, MacCormack dye advection) on a coarse grid (Fast) or about 1.6 times finer (Fine). Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence. Sim time is compressed so that 5–10 minute reversal cycles can be watched.</li>
@@ -140,12 +140,12 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 </div>
 
 <script src="three.min.js"></script>
-<script src="/machine.js?v=2"></script>
+<script src="/machine.js?v=3"></script>
 <script src="sim3d.js?v=3"></script>
 <script>
 (function () {
   var P = EMS_MACHINES.lf, L = P.furnaceL, WZ = P.furnaceW, NX = 56, DX = L / NX, NZ = Math.round(WZ / DX), SIGMA = 3.8e6, STEP = P.step3, TAU = 1.4;
-  var gap = 0.45, slip = 0.4, usePitch = true, stirL = 2.7, stirX = 0.5, zoff = -0.12, gapNorm = 1, refDelta = 0.3, cur = 1;
+  var gap = 0.5, slip = 0.4, usePitch = true, stirL = 2.7, stirX = 0.5, zoff = -0.12, gapNorm = 1, refDelta = 0.3, cur = 1;
   var $ = function (id) { return document.getElementById(id); };
   var stage = $('stage'), canvas = $('gl'), spark = $('spark'), sctx = spark.getContext('2d');
 

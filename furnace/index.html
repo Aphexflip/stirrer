@@ -83,11 +83,11 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <div class="grid">
     <div class="panel">
       <div class="row"><label for="machine">Machine</label>
-        <select id="machine"><option value="lf">Low-frequency bottom stirrer</option><option value="demo">Compact demo (original)</option></select><span></span></div>
-      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="53"><output id="freqOut">0.80 Hz</output></div>
+        <select id="machine"><option value="lf">Standard bottom stirrer (500 mm gap)</option><option value="demo">Compact demo (original)</option></select><span></span></div>
+      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="86"><output id="freqOut">0.80 Hz</output></div>
       <div class="row"><label for="power">Current</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
       <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="30" max="120" step="5" value="80"><output id="depthOut">0.80 m</output></div>
-      <div class="row"><label for="gap">Air gap</label><input id="gap" type="range" min="0" max="80" step="5" value="45"><output id="gapOut">0.45 m</output></div>
+      <div class="row"><label for="gap">Air gap</label><input id="gap" type="range" min="0" max="80" step="5" value="50"><output id="gapOut">0.50 m</output></div>
       <div class="row"><label for="rev">Reversal</label>
         <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="80">Every 80 s</option><option value="300">Every 5 min</option><option value="600" selected>Every 10 min</option></select><span></span></div>
       <details class="adv"><summary>Furnace and stirrer</summary>
@@ -118,7 +118,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing.</li>
+      <li>Machine presets: "Standard bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at 0.2–1 Hz through a 500 mm air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing.</li>
       <li>Force: a traveling-wave push in the melt above the stirrer, decaying with height as exp(−2·a·d). The gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m (approximate), softened by slip (a moving melt sees a lower slip frequency: δ/√slip). The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
       <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force; the readout shows the force reaching the melt as a percentage of that design value.</li>
       <li>Flow: 2D incompressible solver (stable fluids, MacCormack dye advection) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence. The model is a vertical slice through the stirrer centreline, so it has no cross flow and mixes faster than the 3D page.</li>
@@ -128,13 +128,13 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   </details>
 </div>
 
-<script src="/machine.js?v=2"></script>
+<script src="/machine.js?v=3"></script>
 <script src="sim.js?v=3"></script>
 <script>
 (function () {
   var P = EMS_MACHINES.lf, L = P.furnaceL, NX = 240, DX = L / NX, TAU = 1.4, SIGMA = 3.8e6;
   var STEP = P.step2, SPEEDUP = P.speedup2, STEP_WALL = STEP / SPEEDUP;
-  var gap = 0.45, slip = 0.4, usePitch = true, stirL = 2.7, stirX = 0.5, gapNorm = 1, cur = 1, refThr = { thrust: 1, norm: 1 };
+  var gap = 0.5, slip = 0.4, usePitch = true, stirL = 2.7, stirX = 0.5, gapNorm = 1, cur = 1, refThr = { thrust: 1, norm: 1 };
 
   var stage = document.getElementById('stage');
   var dyeC = document.getElementById('dye'), trailC = document.getElementById('trail'), overC = document.getElementById('over');
