@@ -101,8 +101,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
         <div class="row"><label for="slen">Stirrer length</label><input id="slen" type="range" min="5" max="40" step="1" value="27"><output id="slenOut">2.7 m</output></div>
         <div class="row"><label for="zw">Stirrer width</label><input id="zw" type="range" min="20" max="100" step="2" value="37"><output id="zwOut">37 %</output></div>
         <div class="row"><label for="zoff">Side offset</label><input id="zoff" type="range" min="-30" max="30" step="2" value="-12"><output id="zoffOut">-12 %</output></div>
-        <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="200" max="2000" step="50" value="1400"><output id="pitchOut">1400 mm</output></div>
-        <div class="row"><label for="slip">Slip</label><input id="slip" type="range" min="20" max="100" step="5" value="40"><output id="slipOut">40 %</output></div>
+        <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="200" max="2000" step="50" value="2000"><output id="pitchOut">2000 mm</output></div>
+        <div class="row"><label for="slip">Slip</label><input id="slip" type="range" min="20" max="100" step="5" value="20"><output id="slipOut">20 %</output></div>
         <div class="row"><label for="fmodel">Field model</label>
           <select id="fmodel"><option value="0">Skin depth only</option><option value="1" selected>Skin depth + pole pitch</option></select><span></span></div>
       </details>
@@ -140,7 +140,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 </div>
 
 <script src="three.min.js"></script>
-<script src="/machine.js?v=1"></script>
+<script src="/machine.js?v=2"></script>
 <script src="sim3d.js?v=3"></script>
 <script>
 (function () {

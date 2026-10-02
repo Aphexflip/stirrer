@@ -7,9 +7,9 @@
       label: 'Low-frequency bottom stirrer',
       furnaceL: 6.0, furnaceW: 3.5, depth: 80,
       stirL: 2.7, stirW: 1.3, stirX: 0.5, offZ: -12,
-      gap: 0.45, pitch: 1400, slip: 40, model: '1',
+      gap: 0.45, pitch: 2000, slip: 20, model: '1',
       fmin: 0.1, fmax: 5, freq: 0.8, current: 100, rev: '600',
-      accel3: 0.3, accel2: 0.1, step3: 0.25, step2: 0.2, speedup2: 24,
+      accel3: 0.25, accel2: 0.1, step3: 0.25, step2: 0.2, speedup2: 24,
       dx3: [0.09, 0.055], phi: 1.5
     },
     demo: {
