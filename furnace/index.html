@@ -118,7 +118,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy.</li>
+      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing.</li>
       <li>Force: a traveling-wave push in the melt above the stirrer, decaying with height as exp(−2·a·d). The gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m (approximate), softened by slip (a moving melt sees a lower slip frequency: δ/√slip). The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
       <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force; the readout shows the force reaching the melt as a percentage of that design value.</li>
       <li>Flow: 2D incompressible solver (stable fluids, MacCormack dye advection) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence. The model is a vertical slice through the stirrer centreline, so it has no cross flow and mixes faster than the 3D page.</li>
@@ -146,7 +146,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   var sim, depth = 0.8, freq = 0.8, power = 1, revT = 600, playing = true;
   var off, offCtx, img, lut, tracers = [], hist = [], t95 = null, stats = null, dirS = 1, stepCount = 0;
   var bx = 12, by = 12, bw = 100, bh = 40, dpr = 1, wallPhase = 0;
-  var PAD_L = 12, PAD_R = 40, PAD_T = 12, PAD_B = 58;
+  var PAD_L = 12, PAD_R = 40, PAD_T = 12, PAD_B = 76;
 
   function buildLut() {
     lut = new Uint8ClampedArray(256 * 3);
@@ -196,11 +196,12 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     hist = []; t95 = null; stats = sim.stats(); dirS = 1; sim.dir = 1; sim.time = 0;
   }
 
+  function bodyPx() { return sim ? Math.max(36, 0.2 * (sim.winB - sim.winA) * bw) : 40; }
   function layout() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     var w = stage.clientWidth;
     bw = w - PAD_L - PAD_R; bh = bw * depth / L; bx = PAD_L; by = PAD_T;
-    var h = Math.round(PAD_T + bh + PAD_B + gap * bw / L);
+    var h = Math.round(PAD_T + bh + PAD_B + gap * bw / L + (bodyPx() - 40));
     stage.style.height = h + 'px';
     [dyeC, trailC, overC].forEach(function (c) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); });
     dctx.setTransform(dpr, 0, 0, dpr, 0, 0); tctx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -290,22 +291,35 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     octx.fillStyle = '#2a1e17'; octx.fillRect(bx - 1, floor + 1, bw + 2, 8);
 
     // stirrer core with traveling wave teeth
-    var top = floor + gpx + 12, hh = 26, lam = 2 * TAU, teeth = Math.max(6, Math.round((x1 - x0) / (lam * ppm) * 8));
+    var top = floor + gpx + 12, hh = bodyPx(), lam = 2 * TAU, teeth = Math.max(6, Math.round((x1 - x0) / (lam * ppm) * 8));
     if (gpx > 2) {   // refractory and plate between the stirrer face and the melt
       octx.fillStyle = 'rgba(107,74,54,0.16)'; octx.fillRect(x0, floor + 9, x1 - x0, gpx + 3);
       octx.strokeStyle = 'rgba(107,74,54,0.6)'; octx.lineWidth = 1; octx.strokeRect(x0 + .5, floor + 9.5, x1 - x0 - 1, gpx + 2);
       octx.fillStyle = '#9a8a7a'; octx.font = '10px IBM Plex Mono, monospace'; octx.textAlign = 'left'; octx.textBaseline = 'middle';
       octx.fillText('air gap ' + (gap * 1000).toFixed(0) + ' mm', x0 + 6, floor + 9 + (gpx + 3) / 2);
     }
-    octx.fillStyle = '#1e1714'; octx.fillRect(x0, top, x1 - x0, hh);
-    octx.strokeStyle = '#4a382c'; octx.lineWidth = 1; octx.strokeRect(x0 + .5, top + .5, x1 - x0 - 1, hh - 1);
-    var tw = (x1 - x0) / teeth;
-    for (var k = 0; k < teeth; k++) {
-      var xr = k / teeth * ((x1 - x0) / (lam * ppm));
-      var a2 = 0.15 + 0.85 * Math.max(0, Math.sin(2 * Math.PI * (xr - wallPhase)));
-      octx.fillStyle = 'rgba(90,209,255,' + (a2 * (0.35 + 0.65 * power)).toFixed(3) + ')';
-      octx.fillRect(x0 + k * tw + 2, top + 5, tw - 4, hh - 10);
+    // side view of the stirrer body, drawn after the real machine class: red tray with end walls, blue outer plates,
+    // six stacked racetrack coils staggered by phase, laminated core blocks and pink spacers on top, stainless end shields
+    var bwid = x1 - x0, fw = Math.max(5, Math.min(10, bwid * 0.025));
+    octx.fillStyle = '#c23a22'; octx.fillRect(x0 - 3, top + hh - 5, bwid + 6, 5);                  // tray
+    octx.fillStyle = '#c23a22'; octx.fillRect(x0 - 3, top, fw, hh); octx.fillRect(x1 + 3 - fw, top, fw, hh);   // end walls
+    octx.fillStyle = '#2a5cc0'; octx.fillRect(x0 - 3 - 3, top + 2, 3, hh - 2); octx.fillRect(x1 + 3, top + 2, 3, hh - 2);  // blue outer plates
+    var cl = bwid * 0.74, lp = (hh - 14) / 6, offs = [-0.13, 0, 0.13];
+    for (var li = 0; li < 6; li++) {
+      var ph = Math.floor(li / 2), cxl = (x0 + x1) / 2 + offs[ph] * bwid;
+      var xr = offs[ph] * bwid / (lam * ppm);
+      var glow = (0.15 + 0.85 * Math.max(0, Math.sin(2 * Math.PI * (xr - wallPhase)))) * (0.35 + 0.65 * power);
+      octx.fillStyle = li % 2 ? '#c47434' : '#b8652a';
+      octx.beginPath(); octx.roundRect ? octx.roundRect(cxl - cl / 2, top + 8 + li * lp, cl, lp - 1.5, 3) : octx.rect(cxl - cl / 2, top + 8 + li * lp, cl, lp - 1.5); octx.fill();
+      octx.fillStyle = 'rgba(90,209,255,' + (glow * 0.55).toFixed(3) + ')';
+      octx.fillRect(cxl - cl / 2 + 3, top + 8 + li * lp + 0.5, cl - 6, Math.max(1, lp - 3));
     }
+    octx.fillStyle = '#b83320';   // laminated core blocks
+    [-0.3, 0, 0.3].forEach(function (f) { octx.fillRect((x0 + x1) / 2 + f * bwid - bwid * 0.085, top + 2, bwid * 0.17, 6); });
+    octx.fillStyle = '#e0386e';   // spacer bars
+    [-0.45, -0.15, 0.15, 0.45].forEach(function (f) { octx.fillRect((x0 + x1) / 2 + f * bwid - 2, top + 1, 4, hh - 6); });
+    octx.fillStyle = 'rgba(185,190,198,0.9)';   // stainless end shields
+    octx.fillRect(x0 + fw - 3, top + 3, 5, hh - 9); octx.fillRect(x1 + 3 - fw - 5, top + 3, 5, hh - 9);
     // direction arrow
     var ay = top + hh + 13, dir = dirS >= 0 ? 1 : -1, cx = (x0 + x1) / 2, half = 34;
     octx.strokeStyle = '#9a8a7a'; octx.fillStyle = '#9a8a7a'; octx.lineWidth = 1.5;
