@@ -304,7 +304,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     octx.fillStyle = '#c23a22'; octx.fillRect(x0 - 3, top + hh - 5, bwid + 6, 5);                  // tray
     octx.fillStyle = '#c23a22'; octx.fillRect(x0 - 3, top, fw, hh); octx.fillRect(x1 + 3 - fw, top, fw, hh);   // end walls
     octx.fillStyle = '#2a5cc0'; octx.fillRect(x0 - 3 - 3, top + 2, 3, hh - 2); octx.fillRect(x1 + 3, top + 2, 3, hh - 2);  // blue outer plates
-    var cl = bwid * 0.74, lp = (hh - 14) / 6, offs = [-0.13, -0.13, 0, 0, -0.13, -0.13];   // li 0 = top coil: bottom two left, next two middle, top two left
+    var cl = bwid * 0.74, lp = (hh - 14) / 6, offs = [0.13, -0.13, 0.13, -0.13, 0.13, -0.13];   // li 0 = top coil; from the bottom: left, right, left, right, left, right
     for (var li = 0; li < 6; li++) {
       var cxl = (x0 + x1) / 2 + offs[li] * bwid;
       var xr = offs[li] * bwid / (lam * ppm);
