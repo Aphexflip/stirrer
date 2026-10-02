@@ -129,7 +129,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Machine presets: "Standard bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at 0.2–1 Hz through a 500 mm air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing. The Plant button adds a generic furnace shell and supports, an inverter cabinet, a control and HMI cabinet, a cooling unit, mains disconnect, junction box, RTD box and blower, with the cable runs between them. Power cables are drawn as three pairs (one per phase), with pulses that follow the current. Layout and sizes are illustrative.</li>
+      <li>Machine presets: "Standard bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at 0.2–1 Hz through a 500 mm air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, stacked pancake coils in slots between laminated core blocks, clamp bars, end walls), not a product drawing. The Plant button adds a generic furnace shell and supports, an inverter cabinet, a control and HMI cabinet, a cooling unit, mains disconnect, junction box, RTD box and blower, with the cable runs between them. Power cables are drawn as three pairs (one per phase), with pulses that follow the current. Layout and sizes are illustrative.</li>
       <li>Force: a traveling-wave push in the melt above the stirrer. It decays with height as exp(−2·a·d), and the gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate). A melt that is already moving sees a lower slip frequency, which acts like a deeper skin depth: δ/√slip. The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
       <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force. Raising frequency or widening the gap then reduces the force that reaches the melt, and the readout shows it as a percentage of that design value.</li>
       <li>Flow: 3D incompressible solver (stable fluids, MacCormack dye advection) on a coarse grid (Fast) or about 1.6 times finer (Fine). Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence. Sim time is compressed so that 5–10 minute reversal cycles can be watched.</li>
@@ -267,72 +267,76 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     return s;
   }
   function buildEMSBody(x0, x1, z0, z1) {
-    // x0..x1 is the active zone (coils and core); the machine is longer by an end compartment each side, as on the real units.
+    // x0..x1 is the whole machine, frame edge to frame edge. Layout (metres from the left edge, on the 2.7 m unit) was taken from
+    // tape measurements: three core blocks, four coil slots at one slot pitch, a thicker end wall on the right.
     var w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    var s = w / 2.73, X = function (m) { return x0 + m * s; };
     var sc = Math.max(0.55, Math.min(1, Math.min(w, d) / 1.2));
-    var lp = 0.075 * sc, th = 0.05 * sc, top = 0.045;
-    var ec = Math.max(0.3, 0.2 * w); ecLen = ec;
-    bodyH = top + 6 * lp + 0.14;
-    var wt = w + 2 * ec, fz = d / 2 + 0.06;
+    var lp = 0.03 * sc, th = 0.026 * sc, top = 0.045;
+    ecLen = 0.12;
+    bodyH = top + 6 * lp + 0.3 * sc;
+    var fz = d / 2 + 0.06, lw = 0.11 * s, rw = 0.21 * s;
+    var slotC = [0.295, 0.99, 1.67, 2.36], blockC = [0.65, 1.33, 2.02];
     var mat = function (c, e) { return new THREE.MeshLambertMaterial({ color: c, emissive: e || 0x000000 }); };
     var red = mat(0xc23a22), blue = mat(0x2a5cc0), pink = mat(0xe0386e), steel = mat(0xb9bec6), white = mat(0xe8e4dc), core = mat(0xb83320), black = mat(0x15110f), yellow = mat(0xf2c21b), rust = mat(0x7a4a2a), cu = mat(0xc77a3e);
     function box(sx, sy, sz, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); o.position.set(x, y, z); stirGroup.add(o); return o; }
     function cyl(r, len, m, x, y, z, axis) { var o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 16), m); if (axis === 'x') o.rotation.z = Math.PI / 2; if (axis === 'z') o.rotation.x = Math.PI / 2; o.position.set(x, y, z); stirGroup.add(o); return o; }
     stirGroup.add(new THREE.AmbientLight(0xffffff, 0.55));
     var dl = new THREE.DirectionalLight(0xffffff, 0.75); dl.position.set(2, 6, 3); stirGroup.add(dl);
-    // tray, thick red end walls with a blue outer plate, blue frame on both long faces (top rail, low band, posts)
-    box(wt + 0.1, 0.04, d + 0.12, red, cx, -bodyH, cz);
+    // tray, end walls (thin on the left, thick on the right) with blue outer plates, blue frame on both long faces
+    box(w + 0.04, 0.04, d + 0.12, red, cx, -bodyH, cz);
+    box(lw, bodyH, d + 0.12, red, x0 + lw / 2, -bodyH / 2, cz);
+    box(rw, bodyH, d + 0.12, red, x1 - rw / 2, -bodyH / 2, cz);
     [-1, 1].forEach(function (sg) {
-      box(0.1, bodyH, d + 0.12, red, cx + sg * (wt / 2 - 0.05), -bodyH / 2, cz);
-      box(0.025, bodyH * 0.96, d + 0.12, blue, cx + sg * (wt / 2 + 0.012), -bodyH / 2 - 0.01, cz);
-      box(0.08, bodyH * 0.8, 0.08, red, cx + sg * (wt / 2 - 0.16), -bodyH / 2, cz - d * 0.3);       // inner ribs
-      box(0.08, bodyH * 0.8, 0.08, red, cx + sg * (wt / 2 - 0.16), -bodyH / 2, cz + d * 0.3);
-      box(wt, 0.14, 0.03, blue, cx, -bodyH + 0.09, cz + sg * fz);                                      // low band
-      box(wt, 0.05, 0.03, blue, cx, -0.03, cz + sg * fz);                                              // top rail
-      [-1, 0, 1].forEach(function (f) { box(0.06, bodyH, 0.03, blue, cx + (f === 0 ? 0 : f * (w / 2 + 0.05)), -bodyH / 2, cz + sg * fz); });
+      var xe = sg < 0 ? x0 : x1;
+      box(0.025, bodyH * 0.96, d + 0.12, blue, xe + sg * 0.012, -bodyH / 2 - 0.01, cz);
+      box(w, 0.14, 0.03, blue, cx, -bodyH + 0.09, cz + sg * fz);                                      // low band
+      box(w, 0.05, 0.03, blue, cx, -0.03, cz + sg * fz);                                              // top rail
+      [0.03, 1.365, 2.7].forEach(function (m) { box(0.06, bodyH, 0.03, blue, X(m), -bodyH / 2, cz + sg * fz); });
       // lifting lugs (yellow) and carriage wheels on the end plates
       [-0.12, -bodyH + 0.22].forEach(function (yy) {
-        box(0.07, 0.13, 0.22, yellow, cx + sg * (wt / 2 + 0.06), yy, cz + d * 0.28);
-        cyl(0.03, 0.09, black, cx + sg * (wt / 2 + 0.065), yy, cz + d * 0.28, 'x');
-        cyl(0.11, 0.07, rust, cx + sg * (wt / 2 + 0.06), yy, cz - d * 0.28, 'x');
+        box(0.07, 0.13, 0.22, yellow, xe + sg * 0.06, yy, cz + d * 0.28);
+        cyl(0.03, 0.09, black, xe + sg * 0.065, yy, cz + d * 0.28, 'x');
+        cyl(0.11, 0.07, rust, xe + sg * 0.06, yy, cz - d * 0.28, 'x');
       });
     });
-    // six racetrack coils, alternating left and right from the bottom (i = 0 is the top coil)
+    // pancake coils: a stack of six racetrack pancakes in each of four slots, alternating left and right from the bottom (i = 0 is the top)
     coilMats = [];
-    var cl = w * 0.8, cw = d * 0.86, inset = Math.max(0.06, 0.12 * Math.min(cl, cw));
-    var outer = racetrack(cl, cw, cw / 2), hole = racetrack(cl - 2 * inset, cw - 2 * inset, (cw - 2 * inset) / 2);
+    var cw = d * 0.8, pw = 0.28 * s, inn = 0.45 * pw, slit = pw - 2 * inn;
+    var outer = racetrack(cw, pw, pw / 2), hole = racetrack(cw - 2 * inn, slit, slit / 2);
     outer.holes.push(new THREE.Path(hole.getPoints(24).reverse()));
     var geo = new THREE.ExtrudeGeometry(outer, { depth: th, bevelEnabled: false, curveSegments: 20 });
-    geo.rotateX(-Math.PI / 2);
-    var offs = [0.1 * w, -0.1 * w, 0.1 * w, -0.1 * w, 0.1 * w, -0.1 * w];
+    geo.rotateX(-Math.PI / 2); geo.rotateY(Math.PI / 2);
+    var sh = 0.03 * s, offs = [sh, -sh, sh, -sh, sh, -sh];
     for (var i = 0; i < 6; i++) {
-      var m = mat(i % 2 ? 0x8f4c1e : 0x84431a, 0x000000); coilMats.push({ m: m, off: offs[i] });
-      var c = new THREE.Mesh(geo, m); c.position.set(cx + offs[i], -top - (i + 1) * lp + 0.01, cz); stirGroup.add(c);
-      // potted RTD sensor on this layer, both ends, front face
-      [-1, 1].forEach(function (sg) { box(0.06, 0.035, 0.05, black, cx + sg * (0.47 * w - 0.07), -top - (i + 1) * lp + 0.03, cz + cw / 2 + 0.07); });
+      slotC.forEach(function (sc2) {
+        var m = mat(i % 2 ? 0x8f4c1e : 0x84431a, 0x000000);
+        coilMats.push({ m: m, off: X(sc2) + offs[i] - cx });
+        var c = new THREE.Mesh(geo, m); c.position.set(X(sc2) + offs[i], -top - (i + 1) * lp + 0.008, cz); stirGroup.add(c);
+      });
+      [0, 3].forEach(function (k) { box(0.06, 0.03 * sc + 0.005, 0.05, black, X(slotC[k]) + (k ? 0.12 : -0.12) * s, -top - (i + 1) * lp + 0.012, cz + cw / 2 + 0.06); });   // potted RTD, outer slots
     }
-    // laminated core blocks and spacer bars on the face
-    var bw = w * 0.14;
-    [-0.3, 0, 0.3].forEach(function (f) { box(bw, 0.04, d * 0.56, core, cx + f * w, -0.025, cz); });
-    [-0.45, -0.15, 0.15, 0.45].forEach(function (f) { box(0.05, 0.05, d * 0.82, pink, cx + f * w, -0.03, cz); });
-    [-0.3, 0, 0.3].forEach(function (f) { [-1, 1].forEach(function (sg) { box(bw * 0.7, 0.06, 0.05, white, cx + f * w, -0.055, cz + sg * d * 0.31); }); });
-    // clamp columns (pink at the coil ends, red in the middle) with stainless studs below; steel clamp bars on top
-    [-0.47, 0, 0.47].forEach(function (f) {
+    // laminated core blocks (0.34 x 0.48 m) between the slots, paper on their faces, stainless straps with pink RTD pads at their ends
+    var bw = 0.34 * s, bd = d * 0.37;
+    blockC.forEach(function (m) {
+      box(bw, 0.04, bd, core, X(m), -0.025, cz);
       [-1, 1].forEach(function (sg) {
-        box(0.1, bodyH - 0.2, 0.05, f === 0 ? red : pink, cx + f * w, -bodyH / 2 + 0.03, cz + sg * (cw / 2 + 0.03));
-        cyl(0.012, 0.22, steel, cx + f * w, -bodyH + 0.1, cz + sg * (cw / 2 + 0.03), 'y');
-        box(0.05, 0.02, d * 0.7, steel, cx + f * w, -0.01, cz);
+        box(0.012, 0.05, bd, white, X(m) + sg * (bw / 2 + 0.006), -0.03, cz);
+        box(0.1 * s + 0.04, 0.03, 0.09, steel, X(m), -0.03, cz + sg * (bd / 2 + 0.05));
+        box(0.04, 0.04, 0.04, pink, X(m), -0.04, cz + sg * (bd / 2 + 0.05));
+      });
+    });
+    // pink clamp bars along the length, two per slot, over the straight part of the coils; clamp columns with studs at the coil ends
+    slotC.forEach(function (m) {
+      [-1, 1].forEach(function (sg) {
+        box(0.3 * s, 0.06, 0.07, pink, X(m), -0.03, cz + sg * 0.3 * d / 1.3);
+        [-0.1, 0.1].forEach(function (u) { cyl(0.012, 0.015, steel, X(m) + u * s * 1.2, 0.002, cz + sg * 0.3 * d / 1.3, 'y'); });
+        box(0.1 * s, bodyH - 0.2, 0.05, pink, X(m), -bodyH / 2 + 0.03, cz + sg * (cw / 2 + 0.03));
+        cyl(0.012, 0.22, steel, X(m), -bodyH + 0.1, cz + sg * (cw / 2 + 0.03), 'y');
       });
     });
     // copper bus pads in the lower cavity
-    [-0.2, -0.07, 0.07, 0.2].forEach(function (f) { box(0.12, 0.05, 0.14, cu, cx + f * w, -bodyH + 0.1, cz + (f < 0 ? -0.06 : 0.06)); });
-    // stainless end shields (half cylinders around the coil ends), standing in the end compartments
-    var rr = Math.min(cw / 2 + 0.04, w * 0.3), hh = bodyH - 0.16;
-    var sm = new THREE.MeshLambertMaterial({ color: 0x9aa0a6, side: THREE.DoubleSide });
-    [[1, 0], [-1, Math.PI]].forEach(function (e) {
-      var sh = new THREE.Mesh(new THREE.CylinderGeometry(rr, rr, hh, 28, 1, true, e[1], Math.PI), sm);
-      sh.scale.set(1, 1, (cw / 2 + 0.04) / rr); sh.position.set(cx + e[0] * (w / 2 - rr + 0.02), -0.03 - hh / 2, cz); stirGroup.add(sh);
-    });
+    [0.4, 1.0, 1.7, 2.3].forEach(function (m, k) { box(0.12, 0.05, 0.14, cu, X(m), -bodyH + 0.1, cz + (k < 2 ? -0.06 : 0.06)); });
   }
 
   // The rest of the installation, generic and illustrative: furnace shell and supports, inverter / control / cooling cabinets,
