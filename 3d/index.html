@@ -109,7 +109,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       <div class="row"><label for="gain">Alloy opacity</label><input id="gain" type="range" min="1" max="10" step="0.5" value="3"><output id="gainOut">3.0</output></div>
       <div class="row"><label for="quality">Resolution</label>
         <select id="quality"><option value="0">Fast</option><option value="1">Fine (slower)</option></select><span></span></div>
-      <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button><button id="mview" aria-pressed="false" title="Hide the melt and look at the stirrer itself">Machine view</button><button id="resetView">Reset view</button></div>
+      <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button><button id="plant" aria-pressed="true" title="Show or hide furnace shell, cabinets and cables">Plant</button><button id="mview" aria-pressed="false" title="Hide the melt and look at the stirrer itself">Machine view</button><button id="resetView">Reset view</button></div>
     </div>
 
     <div class="panel">
@@ -129,7 +129,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing.</li>
+      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy. The stirrer drawing is illustrative, after the general layout of this machine class (steel tray, six stacked racetrack coils staggered by phase, laminated core blocks, clamp bars, curved end shields), not a product drawing. The Plant button adds a generic furnace shell and supports, an inverter cabinet, a control and HMI cabinet, a cooling unit, mains disconnect, junction box, RTD box and blower, with the cable runs between them. Power cables are drawn as three pairs (one per phase), with pulses that follow the current. Layout and sizes are illustrative.</li>
       <li>Force: a traveling-wave push in the melt above the stirrer. It decays with height as exp(−2·a·d), and the gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate). A melt that is already moving sees a lower slip frequency, which acts like a deeper skin depth: δ/√slip. The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
       <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force. Raising frequency or widening the gap then reduces the force that reaches the melt, and the readout shows it as a percentage of that design value.</li>
       <li>Flow: 3D incompressible solver (stable fluids, MacCormack dye advection) on a coarse grid (Fast) or about 1.6 times finer (Fine). Walls and floor are no-slip and the top is free-slip. Vorticity confinement and weak drag stand in for turbulence. Sim time is compressed so that 5–10 minute reversal cycles can be watched.</li>
@@ -161,7 +161,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 
   var sim, ny, H, depth = 0.8, freq = 0.8, power = 1, zw = 0.37, gain = 3, revT = 600, playing = true;
   var dirS = 1, stepCount = 0, hist = [], t95 = null, stats = null, wallPhase = 0;
-  var bodyH = 0.55, coilMats = [], bathGroup, stirGroup, volMesh, volTex, volData, lineMesh, forceBox, teeth = [], arrow;
+  var bodyH = 0.55, coilMats = [], plantGroup, pulses = [], plantOn = true, bathGroup, stirGroup, volMesh, volTex, volData, lineMesh, forceBox, teeth = [], arrow;
   var tracers = [], NT = 480, TL = 22, trailPos, trailCol, lineGeo, ringHead = 0;
   var view = { theta: 0.75, phi: 1.34, r: 8.7, auto: true };
 
@@ -246,8 +246,6 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     // floor plate
     var floor = new THREE.Mesh(new THREE.BoxGeometry(L + 0.08, 0.04, WZ + 0.08), new THREE.MeshBasicMaterial({ color: 0x2a1e17, transparent: true, opacity: 0.5, depthWrite: false }));
     floor.position.set(0, -0.02, 0); bathGroup.add(floor);
-    // ground grid under the furnace
-    var gsz = Math.max(6, 2 * L), grid = new THREE.GridHelper(gsz, Math.round(gsz * 4), 0x3a2e26, 0x1f1815); grid.position.y = -0.34 - 0.25 * gap; bathGroup.add(grid);
     // force zone: box delta tall over the stirrer
     forceBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x5ad1ff, transparent: true, opacity: 0.16, depthWrite: false }));
     forceBox.renderOrder = 1; bathGroup.add(forceBox);
@@ -318,6 +316,116 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     });
   }
 
+  // The rest of the installation, generic and illustrative: furnace shell and supports, inverter / control / cooling cabinets,
+  // the cable runs between them, a junction box and blower on the stirrer, and current pulses on the power cables.
+  function labelSprite(text, w) {
+    var c = document.createElement('canvas'); c.width = 512; c.height = 96;
+    var g = c.getContext('2d'); g.fillStyle = 'rgba(10,8,7,0.78)'; g.fillRect(0, 0, 512, 96);
+    g.strokeStyle = '#8a5e42'; g.lineWidth = 3; g.strokeRect(2, 2, 508, 92);
+    g.fillStyle = '#f2e6d8'; g.font = '600 38px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 50);
+    var t = new THREE.CanvasTexture(c); var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+    sp.scale.set(w, w * 96 / 512, 1); sp.renderOrder = 5; return sp;
+  }
+  function buildPlant(x0, x1, z0, z1) {
+    if (plantGroup) { plantGroup.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); bathGroup.remove(plantGroup); }
+    plantGroup = new THREE.Group(); pulses = [];
+    var base = -gap - bodyH, gy = base - 0.18, sx = (x0 + x1) / 2, sz = (z0 + z1) / 2;
+    var M = function (c, o) { return new THREE.MeshLambertMaterial({ color: c, emissive: o || 0 }); };
+    var grey = M(0xaeb4ba), dgrey = M(0x4a5058), steel = M(0x59626b), conc = M(0x6d675f), black = M(0x16120f), vent = M(0x2a2d31), green = M(0x39b36b);
+    function bx(w, h, d, m, x, y, z) { var o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); plantGroup.add(o); return o; }
+    // ground
+    var gsz = Math.max(10, 2.4 * L), grid = new THREE.GridHelper(gsz, Math.round(gsz * 3), 0x3a2e26, 0x1f1815); grid.position.set(0, gy, 0); plantGroup.add(grid);
+    // furnace: piers and cross beams (the stirrer pit stays clear), translucent refractory walls, rim, buckstays, door, spout
+    [-1, 1].forEach(function (a) { [-1, 1].forEach(function (b) {
+      bx(0.32, -0.06 - gy, 0.32, conc, a * (L / 2 - 0.35), (gy - 0.06) / 2 - 0.0, b * (WZ / 2 - 0.3));
+    }); });
+    [-1, 1].forEach(function (a) { bx(0.16, 0.18, WZ + 0.3, steel, a * (L / 2 - 0.35), -0.15, 0); });
+    var wallM = new THREE.MeshBasicMaterial({ color: 0x6b4a36, transparent: true, opacity: 0.14, depthWrite: false });
+    var tk = 0.22, Hh = H;
+    [[0, Hh / 2, WZ / 2 + tk / 2, L + 2 * tk, Hh, tk], [0, Hh / 2, -WZ / 2 - tk / 2, L + 2 * tk, Hh, tk], [L / 2 + tk / 2, Hh / 2, 0, tk, Hh, WZ], [-L / 2 - tk / 2, Hh / 2, 0, tk, Hh, WZ]].forEach(function (q) {
+      var m = bx(q[3], q[4], q[5], wallM, q[0], q[1], q[2]); m.renderOrder = 1;
+      var e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0x6b4a36, transparent: true, opacity: 0.55 })); e.position.copy(m.position); plantGroup.add(e);
+    });
+    var rim = 0.12, ro = tk + 0.04;
+    bx(L + 2 * ro, rim, rim, steel, 0, Hh + rim / 2, WZ / 2 + ro - rim / 2); bx(L + 2 * ro, rim, rim, steel, 0, Hh + rim / 2, -WZ / 2 - ro + rim / 2);
+    bx(rim, rim, WZ + 2 * ro, steel, L / 2 + ro - rim / 2, Hh + rim / 2, 0); bx(rim, rim, WZ + 2 * ro, steel, -L / 2 - ro + rim / 2, Hh + rim / 2, 0);
+    for (var i = 0; i <= 4; i++) { var bxp = -L / 2 + i * L / 4; [-1, 1].forEach(function (sg) { bx(0.1, Hh + 0.1, 0.1, steel, bxp, Hh / 2 + 0.03, sg * (WZ / 2 + tk + 0.06)); }); }
+    // working door on the +z face: frame, dark opening, raised door leaf and chains
+    var dx = -L * 0.18, dz = WZ / 2 + tk + 0.03, dwid = Math.min(1.1, L * 0.2), dh = Math.min(0.5, Hh * 0.6);
+    bx(dwid + 0.16, 0.08, 0.06, dgrey, dx, Hh * 0.62 + dh, dz); bx(0.08, dh + 0.08, 0.06, dgrey, dx - dwid / 2 - 0.04, Hh * 0.62 + dh / 2, dz); bx(0.08, dh + 0.08, 0.06, dgrey, dx + dwid / 2 + 0.04, Hh * 0.62 + dh / 2, dz);
+    bx(dwid, dh, 0.03, black, dx, Hh * 0.62 + dh / 2, dz - 0.01);
+    bx(dwid + 0.05, dh * 0.9, 0.05, dgrey, dx, Hh * 0.62 + dh * 1.55, dz + 0.04);
+    [-1, 1].forEach(function (sg) { bx(0.02, 0.4, 0.02, steel, dx + sg * dwid * 0.4, Hh * 0.62 + dh * 2.2, dz + 0.04); });
+    // pouring spout on the -x end
+    var sp = bx(0.55, 0.1, 0.4, steel, -L / 2 - tk - 0.3, Hh - 0.02, 0); sp.rotation.z = -0.12;
+    bx(0.55, 0.05, 0.04, dgrey, -L / 2 - tk - 0.3, Hh + 0.04, 0.2); bx(0.55, 0.05, 0.04, dgrey, -L / 2 - tk - 0.3, Hh + 0.04, -0.2);
+
+    // ---- plant to one side (+x end): cabinets
+    var xc = L / 2 + tk + 1.35, cx0 = xc;
+    function cabinet(w, h, d, z, screen) {
+      var g = new THREE.Group(); g.position.set(cx0, gy + h / 2, z); plantGroup.add(g);
+      function gb(w2, h2, d2, m, x, y, zz) { var o = new THREE.Mesh(new THREE.BoxGeometry(w2, h2, d2), m); o.position.set(x, y, zz); g.add(o); return o; }
+      gb(w, h, d, grey, 0, 0, 0); gb(w + 0.04, 0.06, d + 0.04, dgrey, 0, h / 2, 0); gb(w + 0.04, 0.12, d + 0.04, dgrey, 0, -h / 2 + 0.06, 0);
+      gb(0.01, h - 0.3, d * 0.9, dgrey, -w / 2 - 0.005, 0, 0);          // door seam
+      gb(0.02, 0.28, 0.03, steel, -w / 2 - 0.015, 0, d * 0.4);          // handle
+      for (var v = 0; v < 6; v++) gb(0.012, 0.025, d * 0.6, vent, -w / 2 - 0.006, h * 0.32 - v * 0.05, 0);
+      if (screen) { var sc = gb(0.012, 0.32, 0.5 * d, M(0x0a2a3a, 0x1d6fa0), -w / 2 - 0.006, h * 0.08, 0); }
+      return g;
+    }
+    var czInv = sz - 1.45, czCtl = sz - 0.2, czCool = czInv - 1.5;
+    var inv = cabinet(1.2, 2.0, 0.8, czInv, false), ctl = cabinet(0.8, 2.0, 0.6, czCtl, true);
+    var cool = cabinet(1.4, 1.1, 0.8, czCool, false);
+    var fan = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 24), vent); fan.position.set(0, 0.57, 0); cool.add(fan);
+    var fh = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.02, 6, 24), steel); fh.rotation.x = Math.PI / 2; fh.position.set(0, 0.59, 0); cool.add(fh);
+    var ledg = function (cab, h) { var l = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0x57e389 })); l.position.set(-(cab === inv ? 0.6 : cab === ctl ? 0.4 : 0.7) - 0.01, h, 0.0); cab.add(l); };
+    ledg(inv, 0.75); ledg(ctl, 0.75); ledg(cool, 0.35);
+    // labels
+    function lab(t, x, y, z, w) { var sp2 = labelSprite(t, (w || 1.2) * 0.62); sp2.position.set(x, y, z); plantGroup.add(sp2); }
+    lab('INVERTER CABINET', cx0, gy + 2.28, czInv, 1.5); lab('CONTROL + HMI', cx0, gy + 2.28, czCtl, 1.2); lab('COOLING UNIT', cx0, gy + 1.38, czCool, 1.2);
+    // mains disconnect on the wall behind
+    var mdx = cx0 + 1.3, mdz = czInv - 0.1;
+    bx(0.3, 0.45, 0.2, grey, mdx, gy + 1.3, mdz); bx(0.04, 0.1, 0.04, M(0xd23c2a), mdx - 0.17, gy + 1.3, mdz);
+    lab('MAINS DISCONNECT', mdx, gy + 1.78, mdz, 1.1);
+
+    // ---- stirrer-side hardware: junction box, RTD box, blower and duct
+    var jx = x1 + 0.38, jb = bx(0.34, 0.4, 0.56, grey, jx, base + 0.36, sz); lab('JUNCTION BOX', jx + 0.1, base + 0.78, sz - 0.5, 0.9);
+    var rb = bx(0.2, 0.2, 0.26, grey, jx + 0.02, base + 0.82, sz + 0.62); lab('RTD BOX', jx + 0.1, base + 1.08, sz + 0.62, 0.7);
+    var bl = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.4, 24), dgrey); bl.rotation.z = Math.PI / 2; bl.position.set(x0 - 1.0, base + 0.32, sz + 0.3); plantGroup.add(bl);
+    var duct = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.62, 18), grey); duct.rotation.z = Math.PI / 2; duct.position.set(x0 - 0.42, base + 0.32, sz + 0.3); plantGroup.add(duct);
+    lab('BLOWER', x0 - 1.0, base + 0.78, sz + 0.3, 0.8);
+
+    // ---- cables
+    function tube(pts, r, m) {
+      var c = new THREE.CatmullRomCurve3(pts); var t = new THREE.Mesh(new THREE.TubeGeometry(c, 48, r, 8, false), m); plantGroup.add(t); return c;
+    }
+    var V = function (x, y, z) { return new THREE.Vector3(x, y, z); };
+    var cabFront = cx0 - 0.4, tray = gy + 0.1;
+    var tr = bx(Math.abs(cabFront - jx) - 0.3, 0.1, 0.55, dgrey, (cabFront + jx) / 2 - 0.05, gy + 0.05, (czInv + sz) / 2);   // cable tray
+    tr.scale.z = 1; tr.scale.set(1, 1, 1);
+    var phCol = [0xe0502a, 0xe0b82a, 0x2a7fe0];
+    for (var k = 0; k < 6; k++) {
+      var ph = Math.floor(k / 2), dz = (k - 2.5) * 0.07, zs = czInv + (k - 2.5) * 0.09;
+      var pts = [V(cx0 - 0.62, gy + 0.55, zs), V(cx0 - 0.9, gy + 0.2, zs + 0.1), V(cx0 - 1.4, tray + 0.04, sz + dz + (czInv - sz) * 0.35),
+                 V(jx + 0.9, tray + 0.04, sz + dz * 1.6), V(jx + 0.45, base + 0.22, sz + dz), V(jx + 0.16, base + 0.3 + (k % 2) * 0.05, sz + dz)];
+      var curve = tube(pts, 0.026, M(phCol[ph]));
+      for (var b = 0; b < 3; b++) { var bead = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshBasicMaterial({ color: 0xcff1ff })); plantGroup.add(bead); pulses.push({ m: bead, c: curve, off: b / 3 + ph * 0.11, ret: k % 2, ph: ph }); }
+    }
+    lab('3 x 2 POWER CABLES', (cx0 + jx) / 2, gy + 0.55, sz + 0.3, 1.4);
+    // umbilical-style RTD CAN-bus: control cabinet to RTD box
+    tube([V(cx0 - 0.42, gy + 0.9, czCtl), V(cx0 - 1.0, gy + 0.3, czCtl + 0.3), V(cx0 - 1.6, tray + 0.08, sz + 0.5), V(jx + 0.7, tray + 0.08, sz + 0.6), V(jx + 0.3, base + 0.8, sz + 0.62), V(jx + 0.12, base + 0.82, sz + 0.62)], 0.012, green);
+    // sensor leads from the RTD box into the coil stack
+    var sl = M(0x9aa0a6);
+    for (var q = 0; q < 6; q++) tube([V(jx - 0.08, base + 0.82, sz + 0.55 - q * 0.02), V(jx - 0.2, base + 0.6 - q * 0.04, sz + 0.5), V(x1 - 0.02, base + 0.3 + q * 0.07, sz + 0.5 - q * 0.05)], 0.005, sl);
+    // mains in, network between cabinets, cooling pipes, blower supply
+    tube([V(mdx, gy + 1.08, mdz), V(mdx - 0.2, gy + 0.6, mdz - 0.1), V(cx0 + 0.4, gy + 2.18, czInv - 0.1), V(cx0 + 0.2, gy + 2.04, czInv)], 0.03, black);
+    tube([V(cx0 - 0.3, gy + 2.04, czInv + 0.3), V(cx0 - 0.5, gy + 2.3, (czInv + czCtl) / 2), V(cx0 - 0.2, gy + 2.04, czCtl)], 0.008, M(0x3b82f6));
+    tube([V(cx0 - 0.5, gy + 1.0, czCool - 0.3), V(cx0 - 0.9, gy + 0.55, (czCool + czInv) / 2), V(cx0 - 0.5, gy + 1.0, czInv + 0.4)], 0.028, M(0x3b82f6));
+    tube([V(cx0 - 0.5, gy + 0.9, czCool - 0.35), V(cx0 - 1.0, gy + 0.4, (czCool + czInv) / 2), V(cx0 - 0.5, gy + 0.85, czInv + 0.4)], 0.028, M(0xdd4b39));
+    tube([V(cx0 - 0.45, gy + 0.3, czCtl - 0.1), V(cx0 - 2.0, gy + 0.06, sz - 1.7), V(x0 - 2.2, gy + 0.06, sz - 1.6), V(x0 - 1.1, base + 0.25, sz + 0.3)], 0.016, black);
+    plantGroup.visible = plantOn;
+    bathGroup.add(plantGroup);
+  }
+
   function buildStirrer() {
     if (stirGroup) { stirGroup.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); bathGroup.remove(stirGroup); }
     stirGroup = new THREE.Group(); teeth = [];
@@ -334,6 +442,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3((x0 + x1) / 2, -(bodyH + 0.12), (z0 + z1) / 2), 0.5, 0x9a8a7a, 0.12, 0.07);
     stirGroup.add(arrow);
     bathGroup.add(stirGroup);
+    buildPlant(x0, x1, z0, z1);
   }
 
   function updateForceBox() {
@@ -356,10 +465,12 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     sim.winA = stirX - stirL / L / 2; sim.winB = stirX + stirL / L / 2;
     applyParams(true);
     buildBath(); buildTracers(); resetMetrics(); resize();
-    view.target = new THREE.Vector3(0, (H - gap) * 0.5, 0);
+    view.target = new THREE.Vector3(homeX(), (H - gap) * 0.5 - (plantOn ? 0.5 : 0), 0);
     setMachineView(false);
   }
 
+  function homeR() { return (plantOn ? 1.9 : 1.45) * L; }
+  function homeX() { return plantOn ? 0.14 * L : 0; }
   var mviewOn = false;
   function setMachineView(on) {
     mviewOn = on;
@@ -372,8 +483,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       view.target.set(cx, -gap - bodyH / 2, cz);
       view.theta = 0.6; view.phi = 1.15; view.r = Math.max(2.6, 1.5 * stirL);
     } else {
-      view.target.set(0, (H - gap) * 0.5, 0);
-      view.theta = 0.75; view.phi = P.phi; view.r = 1.45 * L;
+      view.target.set(homeX(), (H - gap) * 0.5 - (plantOn ? 0.5 : 0), 0);
+      view.theta = 0.75; view.phi = P.phi; view.r = homeR();
     }
   }
 
@@ -477,6 +588,12 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
       var a = 0.15 + 0.85 * Math.max(0, Math.sin(2 * Math.PI * (xr - wallPhase)));
       var k = a * (0.35 + 0.65 * power);
       coilMats[i].m.emissive.setRGB(0.05 * k, 0.2 * k, 0.4 * k);
+    }
+    for (var pi = 0; pi < pulses.length; pi++) {
+      var pu = pulses[pi], tt = (pu.off + wallPhase * 2 + 1000) % 1; if (pu.ret) tt = 1 - tt;
+      pu.m.position.copy(pu.c.getPoint(tt)); pu.m.visible = plantOn && power > 0.05;
+      var cur = 0.25 + 0.75 * Math.abs(Math.sin(2 * Math.PI * (wallPhase - pu.ph / 3)));
+      pu.m.scale.setScalar(cur * (0.5 + 0.5 * power));
     }
     arrow.setDirection(new THREE.Vector3(dirS >= 0 ? 1 : -1, 0, 0));
     var cx = -L / 2 + (sim.winA + sim.winB) / 2 * L;
@@ -588,7 +705,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   }
   function onControl() {
     var geo = readControls();
-    if (geo) { view.r = Math.max(0.8 * L, Math.min(3.5 * L, 1.45 * L)); makeSim(); }
+    if (geo) { view.r = Math.max(0.8 * L, Math.min(3.5 * L, homeR())); makeSim(); }
     else if (sim) { applyParams(false); }
   }
   ['freq', 'power', 'depth', 'gap', 'flen', 'fwid', 'slen', 'zw', 'zoff', 'pitch', 'slip'].forEach(function (id) { $(id).addEventListener('input', onControl); });
@@ -603,13 +720,14 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     setVal('fmodel', P.model); setVal('rev', P.rev);
     stirX = P.stirX; L = P.furnaceL; WZ = P.furnaceW;
     readControls();
-    view.r = 1.45 * L; view.theta = 0.75; view.phi = P.phi; view.auto = true;
+    view.r = homeR(); view.theta = 0.75; view.phi = P.phi; view.auto = true;
     makeSim();
   }
   $('machine').addEventListener('change', function () { applyMachine(this.value); });
   $('play').addEventListener('click', function () { playing = !playing; this.setAttribute('aria-pressed', String(!playing)); this.textContent = playing ? 'Pause' : 'Play'; });
   $('alloy').addEventListener('click', function () { sim.resetDye(0.25); hist = []; t95 = null; sim.time = 0; stats = sim.stats(); });
-  $('resetView').addEventListener('click', function () { setMachineView(false); view.theta = 0.75; view.phi = P.phi; view.r = 1.45 * L; view.auto = true; });
+  $('resetView').addEventListener('click', function () { setMachineView(false); view.theta = 0.75; view.phi = P.phi; view.r = homeR(); view.auto = true; });
+  $('plant').addEventListener('click', function () { plantOn = !plantOn; if (plantGroup) plantGroup.visible = plantOn; this.setAttribute('aria-pressed', plantOn ? 'true' : 'false'); if (!mviewOn) { view.target.set(homeX(), (H - gap) * 0.5 - (plantOn ? 0.5 : 0), 0); view.r = homeR(); } });
   $('mview').addEventListener('click', function () { setMachineView(!mviewOn); view.auto = true; });
   window.addEventListener('resize', resize);
 
