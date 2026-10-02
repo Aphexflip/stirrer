@@ -49,6 +49,8 @@ input[type=range] { width: 100%; min-width: 0; accent-color: var(--ember); }
 output { text-align: right; font-variant-numeric: tabular-nums; }
 select, button { font: inherit; color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
 select { background: var(--panel); }
+.row select { grid-column: 2 / span 2; min-width: 0; width: 100%; text-overflow: ellipsis; }
+.row select + span { display: none; }
 button:hover, select:hover { border-color: var(--ember); }
 button[aria-pressed="true"] { background: var(--ember); border-color: var(--ember); color: #160a03; font-weight: 500; }
 :focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
@@ -80,14 +82,22 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 
   <div class="grid">
     <div class="panel">
-      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="48"><output id="freqOut">5.0 Hz</output></div>
-      <div class="row"><label for="power">Power</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
-      <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="50" max="100" step="5" value="80"><output id="depthOut">0.80 m</output></div>
-      <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="100" max="400" step="10" value="200"><output id="pitchOut">200 mm</output></div>
-      <div class="row"><label for="fmodel">Field model</label>
-        <select id="fmodel"><option value="0">Skin depth only</option><option value="1">Skin depth + pole pitch</option></select><span></span></div>
+      <div class="row"><label for="machine">Machine</label>
+        <select id="machine"><option value="lf">Low-frequency bottom stirrer</option><option value="demo">Compact demo (original)</option></select><span></span></div>
+      <div class="row"><label for="freq">Frequency</label><input id="freq" type="range" min="0" max="100" value="53"><output id="freqOut">0.80 Hz</output></div>
+      <div class="row"><label for="power">Current</label><input id="power" type="range" min="10" max="100" step="5" value="100"><output id="powerOut">100 %</output></div>
+      <div class="row"><label for="depth">Bath depth</label><input id="depth" type="range" min="30" max="120" step="5" value="80"><output id="depthOut">0.80 m</output></div>
+      <div class="row"><label for="gap">Air gap</label><input id="gap" type="range" min="0" max="80" step="5" value="45"><output id="gapOut">0.45 m</output></div>
       <div class="row"><label for="rev">Reversal</label>
-        <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="40">Every 40 s</option><option value="80">Every 80 s</option></select><span></span></div>
+        <select id="rev"><option value="0">Off</option><option value="20">Every 20 s</option><option value="80">Every 80 s</option><option value="300">Every 5 min</option><option value="600" selected>Every 10 min</option></select><span></span></div>
+      <details class="adv"><summary>Furnace and stirrer</summary>
+        <div class="row"><label for="flen">Furnace length</label><input id="flen" type="range" min="20" max="100" step="5" value="60"><output id="flenOut">6.0 m</output></div>
+        <div class="row"><label for="slen">Stirrer length</label><input id="slen" type="range" min="5" max="40" step="1" value="27"><output id="slenOut">2.7 m</output></div>
+        <div class="row"><label for="pitch">Pole pitch</label><input id="pitch" type="range" min="200" max="2000" step="50" value="1400"><output id="pitchOut">1400 mm</output></div>
+        <div class="row"><label for="slip">Slip</label><input id="slip" type="range" min="20" max="100" step="5" value="40"><output id="slipOut">40 %</output></div>
+        <div class="row"><label for="fmodel">Field model</label>
+          <select id="fmodel"><option value="0">Skin depth only</option><option value="1" selected>Skin depth + pole pitch</option></select><span></span></div>
+      </details>
       <div class="btns"><button id="play" aria-pressed="false">Pause</button><button id="alloy">Add alloy</button></div>
     </div>
 
@@ -108,21 +118,23 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   <details>
     <summary>Model notes</summary>
     <ul>
-      <li>Force: a traveling-wave push along the floor under the left half of the bath, decaying with height as exp(−2d/δ). Skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m for liquid aluminum (approximate).</li>
-      <li>Flow: 2D incompressible solver (stable fluids) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence.</li>
-      <li>Wall force density is held constant. Frequency changes penetration depth only. A real machine also changes thrust with frequency, current and the gap through the refractory.</li>
-      <li>Field travel speed vs = 2·τ·f uses the Pole pitch slider (default 0.20 m, an assumed example value). The optional Field model adds the pole-pitch limit to penetration: the force falls as exp(−2·Re α·d) with α² = (π/τ)² + 2i/δ². Total thrust is kept the same, only the depth profile changes.</li>
-      <li>Left out: 3D effects, free-surface motion, thermal convection, and any calibration against machine data. Sim time runs about 5× real time.</li>
-      <li>Qualitative only. Do not use it to size or predict a real installation.</li>
+      <li>Machine presets: "Low-frequency bottom stirrer" is a generic, illustrative class of bottom-mounted linear induction stirrer driven at roughly 0.1–5 Hz through an air gap of refractory and plate. The values are rounded and are not product specifications. "Compact demo" is the original 2 m toy.</li>
+      <li>Force: a traveling-wave push in the melt above the stirrer, decaying with height as exp(−2·a·d). The gap adds a factor exp(−2·a·g) before the melt. The decay rate a comes from the skin depth δ = √(1 / (π f μ₀ σ)) with σ = 3.8 MS/m (approximate), softened by slip (a moving melt sees a lower slip frequency: δ/√slip). The optional Field model adds the pole-pitch limit: α² = (π/τ)² + 2i·slip/δ², a = Re α. Current scales force as I².</li>
+      <li>Thrust is normalised so that the preset gap, frequency and pole pitch give the nominal force; the readout shows the force reaching the melt as a percentage of that design value.</li>
+      <li>Flow: 2D incompressible solver (stable fluids, MacCormack dye advection) with no-slip walls and floor and a free-slip top. Vorticity confinement and weak drag stand in for turbulence. The model is a vertical slice through the stirrer centreline, so it has no cross flow and mixes faster than the 3D page.</li>
+      <li>Field travel speed is 2·τ·f from the Pole pitch slider. Sim time is compressed so that 5–10 minute reversal cycles can be watched.</li>
+      <li>Left out: 3D effects, free-surface motion, thermal convection, plate heating, side-mounted installations and any calibration against a real furnace. Qualitative only. Do not use it to size or predict a real installation.</li>
     </ul>
   </details>
 </div>
 
-<script src="sim.js?v=2"></script>
+<script src="/machine.js?v=1"></script>
+<script src="sim.js?v=3"></script>
 <script>
 (function () {
-  var L = 2.0, NX = 240, DX = L / NX, TAU = 0.20, SIGMA = 3.8e6;
-  var STEP = 0.08, SPEEDUP = 4.8, STEP_WALL = STEP / SPEEDUP;
+  var P = EMS_MACHINES.lf, L = P.furnaceL, NX = 240, DX = L / NX, TAU = 1.4, SIGMA = 3.8e6;
+  var STEP = P.step2, SPEEDUP = P.speedup2, STEP_WALL = STEP / SPEEDUP;
+  var gap = 0.45, slip = 0.4, usePitch = true, stirL = 2.7, stirX = 0.5, gapNorm = 1, cur = 1, refThr = { thrust: 1, norm: 1 };
 
   var stage = document.getElementById('stage');
   var dyeC = document.getElementById('dye'), trailC = document.getElementById('trail'), overC = document.getElementById('over');
@@ -131,7 +143,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   var el = function (id) { return document.getElementById(id); };
   var freqIn = el('freq'), powerIn = el('power'), depthIn = el('depth'), revIn = el('rev'), playBtn = el('play');
 
-  var sim, depth = 0.8, freq = 5, power = 1, revT = 0, playing = true;
+  var sim, depth = 0.8, freq = 0.8, power = 1, revT = 600, playing = true;
   var off, offCtx, img, lut, tracers = [], hist = [], t95 = null, stats = null, dirS = 1, stepCount = 0;
   var bx = 12, by = 12, bw = 100, bh = 40, dpr = 1, wallPhase = 0;
   var PAD_L = 12, PAD_R = 40, PAD_T = 12, PAD_B = 58;
@@ -147,13 +159,14 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     }
   }
 
-  function freqFromSlider(s) { return 0.5 * Math.pow(120, s / 100); }
+  function freqFromSlider(s) { return EMS_freqFromSlider(P, s); }
 
   function makeSim() {
-    var ny = Math.round(depth / DX);
+    DX = L / NX;
+    var ny = Math.max(3, Math.round(depth / DX));
     sim = new EMS.FluidSim(NX, ny, DX);
-    sim.params.freq = freq; sim.params.power = power; sim.params.sigma = SIGMA; sim.params.pitch = TAU; sim.params.usePitch = el('fmodel').value === '1';
-    sim.buildProfile();
+    sim.params.accel = P.accel2;
+    applyParams();
     off = document.createElement('canvas'); off.width = NX; off.height = ny;
     offCtx = off.getContext('2d'); img = offCtx.createImageData(NX, ny);
     tracers = [];
@@ -161,6 +174,18 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     for (var i = 0; i < n; i++) tracers.push(spawn(true));
     resetMetrics();
     layout();
+  }
+
+  function applyParams() {
+    sim.winA = Math.max(0, stirX - stirL / L / 2); sim.winB = Math.min(1, stirX + stirL / L / 2);
+    var p = sim.params;
+    p.freq = freq; p.power = cur * cur; p.sigma = SIGMA; p.pitch = TAU; p.usePitch = usePitch; p.slip = slip; p.gap = gap; p.gapNorm = gapNorm;
+    sim.buildProfile();
+  }
+
+  function refThrust() {
+    var r = EMS.decay(P.freq, SIGMA, P.pitch / 1000, P.model === '1', P.slip / 100);
+    return { norm: Math.exp(2 * r.a * P.gap), thrust: r.delta / 2 };
   }
 
   function spawn() {
@@ -175,7 +200,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     var w = stage.clientWidth;
     bw = w - PAD_L - PAD_R; bh = bw * depth / L; bx = PAD_L; by = PAD_T;
-    var h = Math.round(PAD_T + bh + PAD_B);
+    var h = Math.round(PAD_T + bh + PAD_B + gap * bw / L);
     stage.style.height = h + 'px';
     [dyeC, trailC, overC].forEach(function (c) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); });
     dctx.setTransform(dpr, 0, 0, dpr, 0, 0); tctx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -196,7 +221,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     } else { dirS += (1 - dirS) * (1 - Math.exp(-STEP / 2)); sim.dir = dirS; }
     sim.step(STEP);
     stepCount++;
-    wallPhase += STEP * Math.min(freq, 4) * 0.35 * dirS;
+    wallPhase += 0.008 * Math.min(freq, 3) * 0.5 * dirS;
 
     // tracers
     var w = stage.clientWidth, h = stage.clientHeight;
@@ -249,7 +274,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     octx.clearRect(0, 0, w, h);
     var floor = by + bh;
     var x0 = bx + sim.winA * bw, x1 = bx + sim.winB * bw;
-    var dpx = sim.delta * ppm;
+    var dpx = sim.pen * ppm, gpx = gap * ppm;
 
     // force zone glow above the stirrer
     var g = octx.createLinearGradient(0, floor, 0, floor - Math.min(bh, dpx * 3));
@@ -265,7 +290,13 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     octx.fillStyle = '#2a1e17'; octx.fillRect(bx - 1, floor + 1, bw + 2, 8);
 
     // stirrer core with traveling wave teeth
-    var top = floor + 12, hh = 26, lam = 2 * TAU, teeth = Math.max(6, Math.round((x1 - x0) / (lam * ppm) * 8));
+    var top = floor + gpx + 12, hh = 26, lam = 2 * TAU, teeth = Math.max(6, Math.round((x1 - x0) / (lam * ppm) * 8));
+    if (gpx > 2) {   // refractory and plate between the stirrer face and the melt
+      octx.fillStyle = 'rgba(107,74,54,0.16)'; octx.fillRect(x0, floor + 9, x1 - x0, gpx + 3);
+      octx.strokeStyle = 'rgba(107,74,54,0.6)'; octx.lineWidth = 1; octx.strokeRect(x0 + .5, floor + 9.5, x1 - x0 - 1, gpx + 2);
+      octx.fillStyle = '#9a8a7a'; octx.font = '10px IBM Plex Mono, monospace'; octx.textAlign = 'left'; octx.textBaseline = 'middle';
+      octx.fillText('air gap ' + (gap * 1000).toFixed(0) + ' mm', x0 + 6, floor + 9 + (gpx + 3) / 2);
+    }
     octx.fillStyle = '#1e1714'; octx.fillRect(x0, top, x1 - x0, hh);
     octx.strokeStyle = '#4a382c'; octx.lineWidth = 1; octx.strokeRect(x0 + .5, top + .5, x1 - x0 - 1, hh - 1);
     var tw = (x1 - x0) / teeth;
@@ -289,7 +320,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     octx.beginPath(); octx.moveTo(lx, floor - 1); octx.lineTo(lx, floor - dpx); octx.moveTo(lx - 4, floor - dpx); octx.lineTo(lx + 4, floor - dpx); octx.stroke();
     octx.textAlign = 'left'; octx.textBaseline = 'middle';
     var ly = Math.min(floor - 8, floor - dpx - 8); if (ly < by + 8) ly = by + 8;
-    octx.fillText('δ ' + (sim.delta * 1000).toFixed(0) + ' mm', lx + 8, ly);
+    octx.fillText('force depth ' + (sim.pen * 1000).toFixed(0) + ' mm', lx + 8, ly);
 
     // depth ruler
     octx.fillStyle = '#9a8a7a'; octx.strokeStyle = '#6b4a36'; octx.lineWidth = 1; octx.textAlign = 'left';
@@ -308,7 +339,7 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     var y95 = sh - 4 - 0.95 * (sh - 8);
     sctx.beginPath(); sctx.moveTo(0, y95); sctx.lineTo(sw, y95); sctx.stroke(); sctx.setLineDash([]);
     if (hist.length < 2) return;
-    var tmax = Math.max(60, hist[hist.length - 1][0]);
+    var tmax = Math.max(P.furnaceL > 3 ? 1200 : 60, hist[hist.length - 1][0]);
     sctx.strokeStyle = '#ff8c22'; sctx.lineWidth = 2; sctx.beginPath();
     for (var i = 0; i < hist.length; i++) {
       var x = hist[i][0] / tmax * (sw - 2) + 1, y = sh - 4 - hist[i][1] * (sh - 8);
@@ -319,8 +350,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 
   function readouts() {
     el('sHomog').innerHTML = Math.round(stats.homog * 100) + '<small>%</small>';
-    el('sT95').innerHTML = t95 === null ? 'n/a' : Math.round(t95) + '<small>s</small>';
-    el('sTime').innerHTML = Math.round(sim.time) + '<small>s</small>';
+    el('sT95').innerHTML = t95 === null ? 'n/a' : EMS_fmtT(t95);
+    el('sTime').innerHTML = EMS_fmtT(sim.time);
     el('sDelta').innerHTML = (sim.delta * 1000).toFixed(0) + '<small>mm</small>';
     var r = sim.pen / depth;
     el('sRatio').innerHTML = r.toFixed(2) + '<small>δ/H</small>';
@@ -328,7 +359,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     var txt = r < 0.08 ? 'Skin-limited. The force stays in a thin layer at the floor, so the bulk is dragged by a wall jet.'
       : r < 0.5 ? 'Bulk drive. The force reaches well into the bath and sets up one large recirculation loop.'
       : 'Deep penetration. The force fills most of the bath depth.';
-    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(1) + ' m/s. Force penetration ' + (sim.pen * 1000).toFixed(0) + ' mm.';
+    txt += ' Field travel speed ' + (2 * TAU * freq).toFixed(2) + ' m/s. Force penetration ' + (sim.pen * 1000).toFixed(0) + ' mm.';
+    if (gap > 0.001) txt += ' Force reaching the melt is ' + (sim.thrustCoef / refThr.thrust * 100).toFixed(0) + '% of the design-gap value.';
     if (el('regime').textContent !== txt) el('regime').textContent = txt;
   }
 
@@ -345,24 +377,40 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
     requestAnimationFrame(frame);
   }
 
-  function setFreq() {
-    freq = freqFromSlider(+freqIn.value);
-    el('freqOut').textContent = freq.toFixed(1) + ' Hz';
-    if (sim) { sim.params.freq = freq; sim.buildProfile(); }
+  function fmt(id, txt) { el(id + 'Out').textContent = txt; }
+  function readControls() {
+    var geo = false, v;
+    freq = freqFromSlider(+el('freq').value); fmt('freq', EMS_fmtHz(freq));
+    cur = +el('power').value / 100; fmt('power', el('power').value + ' %');
+    v = +el('depth').value / 100; if (v !== depth) geo = true; depth = v; fmt('depth', depth.toFixed(2) + ' m');
+    gap = +el('gap').value / 100; fmt('gap', gap.toFixed(2) + ' m');
+    v = +el('flen').value / 10; if (v !== L) geo = true; L = v; fmt('flen', L.toFixed(1) + ' m');
+    stirL = +el('slen').value / 10; fmt('slen', stirL.toFixed(1) + ' m');
+    TAU = +el('pitch').value / 1000; fmt('pitch', el('pitch').value + ' mm');
+    slip = +el('slip').value / 100; fmt('slip', el('slip').value + ' %');
+    usePitch = el('fmodel').value === '1';
+    revT = +el('rev').value;
+    return geo;
   }
-  freqIn.addEventListener('input', setFreq);
-  powerIn.addEventListener('input', function () {
-    power = +powerIn.value / 100; el('powerOut').textContent = powerIn.value + ' %';
-    sim.params.power = power;
-  });
-  depthIn.addEventListener('input', function () {
-    depth = +depthIn.value / 100; el('depthOut').textContent = depth.toFixed(2) + ' m';
-    makeSim();
-  });
-  function applyPitch() { TAU = +el('pitch').value / 1000; el('pitchOut').textContent = el('pitch').value + ' mm'; if (sim) { sim.params.pitch = TAU; sim.params.usePitch = el('fmodel').value === '1'; sim.buildProfile();  } }
-  el('pitch').addEventListener('input', applyPitch);
-  el('fmodel').addEventListener('change', applyPitch);
-  revIn.addEventListener('change', function () { revT = +revIn.value; });
+  function onControl() {
+    var geo = readControls();
+    if (geo) makeSim();
+    else if (sim) { applyParams(); layout(); }
+  }
+  ['freq', 'power', 'depth', 'gap', 'flen', 'slen', 'pitch', 'slip'].forEach(function (id) { el(id).addEventListener('input', onControl); });
+  ['fmodel', 'rev'].forEach(function (id) { el(id).addEventListener('change', onControl); });
+  function setVal(id, v) { el(id).value = v; }
+  function applyMachine(key) {
+    P = EMS_MACHINES[key] || EMS_MACHINES.lf;
+    STEP = P.step2; SPEEDUP = P.speedup2; STEP_WALL = STEP / SPEEDUP;
+    refThr = refThrust(); gapNorm = refThr.norm;
+    setVal('freq', EMS_sliderFromFreq(P, P.freq)); setVal('power', P.current); setVal('depth', P.depth); setVal('gap', Math.round(P.gap * 100));
+    setVal('flen', Math.round(P.furnaceL * 10)); setVal('slen', Math.round(P.stirL * 10));
+    setVal('pitch', P.pitch); setVal('slip', P.slip); setVal('fmodel', P.model); setVal('rev', P.rev);
+    stirX = P.stirX; L = P.furnaceL;
+    readControls(); makeSim();
+  }
+  el('machine').addEventListener('change', function () { applyMachine(this.value); });
   playBtn.addEventListener('click', function () {
     playing = !playing; playBtn.setAttribute('aria-pressed', String(!playing)); playBtn.textContent = playing ? 'Pause' : 'Play';
   });
@@ -373,7 +421,8 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
   window.addEventListener('resize', layout);
 
   buildLut();
-  setFreq();
+  refThr = refThrust(); gapNorm = refThr.norm;
+  readControls();
   makeSim();
   // warm up so the first frame already shows flow
   for (var w = 0; w < 30; w++) sim.step(STEP);
@@ -382,6 +431,6 @@ details ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction:
 })();
 </script>
 <script src="/nav.js?v=3"></script>
-<script src="/state.js?v=2"></script>
+<script src="/state.js?v=3"></script>
 </body>
 </html>

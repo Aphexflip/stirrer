@@ -11,6 +11,21 @@
   function skinDepth(f, sigma) { return Math.sqrt(1 / (Math.PI * f * MU0 * sigma)); }
   function smooth(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
 
+
+  // Force decay rate a (1/m) and skin depth for a field of frequency f.
+  // Skin depth only: a = 1/delta. With the pole-pitch limit: alpha^2 = k^2 + i*2/delta^2, k = pi/tau, a = Re(alpha).
+  function decay(freq, sigma, pitch, usePitch, slip) {
+    var delta = skinDepth(freq, sigma);
+    // A melt that is already moving sees a lower slip frequency s*f, so the field penetrates as if delta were 1/sqrt(s) larger.
+    var sl = slip > 0 ? Math.min(1, slip) : 1;
+    var a = Math.sqrt(sl) / delta;
+    if (usePitch) {
+      var k2 = Math.pow(Math.PI / pitch, 2), q = 2 * sl / (delta * delta);
+      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
+    }
+    return { delta: delta, a: a };
+  }
+
   function Fluid3D(nx, ny, nz, dx) {
     this.nx = nx; this.ny = ny; this.nz = nz; this.dx = dx;
     this.A = nx + 2; this.B = ny + 2; this.C = nz + 2;
@@ -23,7 +38,7 @@
     this.wx = F(); this.wy = F(); this.wz = F(); this.wm = F();
     this.sharpDye = true;
     this.time = 0; this.dir = 1;
-    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.6, pitch: 0.20, usePitch: false };
+    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.6, pitch: 0.20, usePitch: false, gap: 0, gapNorm: 1, slip: 1 };
     this.winA = 0.08; this.winB = 0.50; this.zA = 0.20; this.zB = 0.80;
     this.buildProfile();
     this.resetDye(0.25);
@@ -31,21 +46,20 @@
 
   Fluid3D.prototype.buildProfile = function () {
     var nx = this.nx, ny = this.ny, nz = this.nz, dx = this.dx;
-    var delta = skinDepth(this.params.freq, this.params.sigma);
+    var dr = decay(this.params.freq, this.params.sigma, this.params.pitch, this.params.usePitch, this.params.slip);
+    var delta = dr.delta, a = dr.a;
     this.delta = delta;
-    // Force decay rate a (1/m): skin depth only, or travelling field of pole pitch tau in a conductor:
-    // alpha^2 = k^2 + i*2/delta^2 with k = pi/tau; the force falls as exp(-2*Re(alpha)*d).
-    var a = 1 / delta;
-    if (this.params.usePitch) {
-      var k2 = Math.pow(Math.PI / this.params.pitch, 2), q = 2 / (delta * delta);
-      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
-    }
-    this.pen = 1 / a;   // 1/a is the e-folding depth of the force amplitude measure used for the readout
+    this.pen = 1 / a;   // e-folding depth of the force
+    // Non-magnetic air gap between the stirrer face and the melt: the force reaching the melt falls as exp(-2 a g).
+    // gapNorm (set by the machine profile) makes the reference gap/frequency give the nominal thrust.
+    var gf = Math.exp(-2 * a * (this.params.gap || 0)) * (this.params.gapNorm || 1);
+    this.gapFactor = gf;
+    this.thrustCoef = (delta / 2) * gf * (1 - Math.exp(-2 * a * ny * dx));
     this.prof = new Float32Array(ny + 2);
     for (var j = 1; j <= ny; j++) {
       var d0 = (j - 1) * dx, d1 = j * dx;
       // cell-averaged force so total thrust is kept even when delta is under-resolved
-      this.prof[j] = (delta / 2) * (Math.exp(-2 * d0 * a) - Math.exp(-2 * d1 * a)) / dx;
+      this.prof[j] = (delta / 2) * gf * (Math.exp(-2 * d0 * a) - Math.exp(-2 * d1 * a)) / dx;
     }
     this.winX = new Float32Array(nx + 2);
     var a = this.winA * nx, b = this.winB * nx, e = 0.06 * nx;
@@ -242,6 +256,6 @@
       fz * (gy * (gx * arr[a + sz] + fx * arr[a + sz + 1]) + fy * (gx * arr[a + sz + sy] + fx * arr[a + sz + sy + 1]));
   };
 
-  var api = { Fluid3D: Fluid3D, skinDepth: skinDepth };
+  var api = { Fluid3D: Fluid3D, skinDepth: skinDepth, decay: decay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.EMS3 = api;
 })(typeof window !== 'undefined' ? window : this);

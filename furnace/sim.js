@@ -11,6 +11,21 @@
     return Math.sqrt(1 / (Math.PI * freqHz * MU0 * sigma));
   }
 
+
+  // Force decay rate a (1/m) and skin depth for a field of frequency f.
+  // Skin depth only: a = 1/delta. With the pole-pitch limit: alpha^2 = k^2 + i*2/delta^2, k = pi/tau, a = Re(alpha).
+  function decay(freq, sigma, pitch, usePitch, slip) {
+    var delta = skinDepth(freq, sigma);
+    // A melt that is already moving sees a lower slip frequency s*f, so the field penetrates as if delta were 1/sqrt(s) larger.
+    var sl = slip > 0 ? Math.min(1, slip) : 1;
+    var a = Math.sqrt(sl) / delta;
+    if (usePitch) {
+      var k2 = Math.pow(Math.PI / pitch, 2), q = 2 * sl / (delta * delta);
+      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
+    }
+    return { delta: delta, a: a };
+  }
+
   function FluidSim(nx, ny, dx) {
     this.nx = nx; this.ny = ny; this.dx = dx;
     this.W = nx + 2; this.Hh = ny + 2;
@@ -24,7 +39,7 @@
     this.time = 0;
     this.dir = 1;
     this.sharpDye = true;
-    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.5, pitch: 0.20, usePitch: false };
+    this.params = { sigma: 3.8e6, freq: 5, power: 1, drag: 0.03, eps: 3, accel: 0.5, pitch: 0.20, usePitch: false, gap: 0, gapNorm: 1, slip: 1 };
     this.winA = 0.08; this.winB = 0.50;
     this.buildProfile();
     this.resetDye(0.25);
@@ -34,20 +49,18 @@
 
   FluidSim.prototype.buildProfile = function () {
     var nx = this.nx, ny = this.ny, dx = this.dx;
-    var delta = skinDepth(this.params.freq, this.params.sigma);
+    var dr = decay(this.params.freq, this.params.sigma, this.params.pitch, this.params.usePitch, this.params.slip);
+    var delta = dr.delta, a = dr.a;
     this.delta = delta;
-    // Decay rate a (1/m): skin depth only, or a travelling field of pole pitch tau: alpha^2 = k^2 + i*2/delta^2, k = pi/tau.
-    // Same total thrust either way (profile scaled by delta*a), only the shape changes.
-    var a = 1 / delta;
-    if (this.params.usePitch) {
-      var k2 = Math.pow(Math.PI / this.params.pitch, 2), q = 2 / (delta * delta);
-      a = Math.sqrt((Math.sqrt(k2 * k2 + q * q) + k2) / 2);
-    }
     this.pen = 1 / a;
+    var gf = Math.exp(-2 * a * (this.params.gap || 0)) * (this.params.gapNorm || 1);
+    this.gapFactor = gf;
+    this.thrustCoef = (delta / 2) * gf * (1 - Math.exp(-2 * a * ny * dx));
     this.profY = new Float32Array(ny + 2);
     for (var j = 1; j <= ny; j++) {
       var d = (j - 0.5) * dx;
-      this.profY[j] = delta * a * Math.exp(-2 * d * a);
+      // same thrust normalisation as the 3D model: delta/2 per unit depth at the reference
+      this.profY[j] = delta * a * gf * Math.exp(-2 * d * a);
     }
     this.winX = new Float32Array(nx + 2);
     var a = this.winA * nx, b = this.winB * nx, e = 0.04 * nx;
@@ -221,7 +234,7 @@
     return s0 * (t0 * arr[a] + t1 * arr[a + W]) + s1 * (t0 * arr[a + 1] + t1 * arr[a + 1 + W]);
   };
 
-  var api = { FluidSim: FluidSim, skinDepth: skinDepth };
+  var api = { FluidSim: FluidSim, skinDepth: skinDepth, decay: decay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.EMS = api;
 })(typeof window !== 'undefined' ? window : this);

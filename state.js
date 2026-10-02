@@ -5,15 +5,16 @@
     .filter(function (c) { return c.id; });
   if (!ctrls.length) return;
   function fire(c) { c.dispatchEvent(new Event(c.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); }
+  var defs = {};
+  ctrls.forEach(function (c) { defs[c.id] = c.tagName === 'SELECT' ? (c.querySelector('option[selected]') || c.options[0]).value : c.defaultValue; });
   // restore
   try {
     var h = location.hash.replace(/^#/, '');
     if (h) {
       var p = new URLSearchParams(h);
       // quality/depth rebuild the sim, so apply them first
-      var order = ctrls.slice().sort(function (a, b) {
-        var r = function (c) { return c.id === 'quality' ? 0 : c.id === 'depth' ? 1 : 2; }; return r(a) - r(b);
-      });
+      var rank = function (c) { return c.id === 'machine' ? 0 : c.id === 'quality' ? 1 : (c.id === 'depth' || c.id === 'flen' || c.id === 'fwid') ? 2 : 3; };
+      var order = ctrls.slice().sort(function (a, b) { return rank(a) - rank(b); });
       order.forEach(function (c) {
         if (!p.has(c.id)) return;
         var v = p.get(c.id);
@@ -29,7 +30,7 @@
     clearTimeout(t);
     t = setTimeout(function () {
       var p = new URLSearchParams();
-      ctrls.forEach(function (c) { if (c.value !== c.defaultValue && !(c.tagName === 'SELECT' && c.selectedIndex === 0)) p.set(c.id, c.value); });
+      ctrls.forEach(function (c) { if (c.value !== defs[c.id]) p.set(c.id, c.value); });
       var s = p.toString();
       try { history.replaceState(null, '', location.pathname + location.search + (s ? '#' + s : '')); } catch (e) {}
     }, 250);
