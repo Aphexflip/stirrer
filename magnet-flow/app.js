@@ -30,6 +30,21 @@ for(let row=1;row<=5;row++)for(const side of ['A','B']){
 function selectCoil(id){
   selected=id;const d=byId[id];
   map.querySelectorAll('button').forEach(b=>{let yes=b.dataset.id===id;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes));});
+  // The healthy magnet's individual coil measurements have not been supplied.
+  // Never mislabel 000422 failure measurements as known-good readings.
+  if(view==='healthy'){
+    document.getElementById('detailTitle').textContent=id+' · Healthy reference illustration';
+    const referenceStatus=document.getElementById('detailStatus');
+    referenceStatus.textContent='REFERENCE';
+    referenceStatus.className='status pass';
+    document.getElementById('readouts').innerHTML=
+      '<div class="readout"><small>HEALTHY ASSEMBLY IR • 1000 V</small><strong>&gt;999 MΩ</strong></div>'+
+      '<div class="readout"><small>INDIVIDUAL COIL IR</small><strong>Not measured</strong></div>'+
+      '<div class="readout"><small>INDIVIDUAL SURGE RESULT</small><strong>Not supplied</strong></div>';
+    document.getElementById('detailText').textContent='This healthy coil is a conceptual reference only. The known-good assembled T-500 reportedly showed off-scale high insulation resistance. Individual good-coil resistance and surge values have not been supplied; do not infer them from the damaged unit.';
+    models.forEach(m=>m.refreshCoils());
+    return;
+  }
   document.getElementById('detailTitle').textContent=id+' · '+(d.quality==='fail'?'Surge comparison failed':d.quality==='watch'?'Surge pass near threshold':'Surge comparison passed');
   const status=document.getElementById('detailStatus');status.textContent=d.quality.toUpperCase();status.className='status '+d.quality;
   const reading=(label,value,cls)=>'<div class="readout"><small>'+label+'</small><strong'+(cls?' class="'+cls+'"':'')+'>'+value+'</strong></div>';
