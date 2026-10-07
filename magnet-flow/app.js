@@ -23,8 +23,9 @@ const map=document.getElementById('coilMap');
 for(const side of ['A SIDE • WHITE','B SIDE • PURPLE']){let el=document.createElement('div');el.className='column-head';el.textContent=side;map.appendChild(el);}
 for(let row=1;row<=5;row++)for(const side of ['A','B']){
   const id=side+row,d=byId[id],button=document.createElement('button');button.type='button';button.className='coil-btn';button.dataset.id=id;
-  const label=d.quality==='fail'?'Surge FAIL':d.quality==='watch'?'Near limit':'Surge PASS';
-  button.innerHTML='<span><i class="mark '+d.quality+'"></i><b>'+id+'</b></span><small>'+label+'</small>';
+  const healthyReference=view==='healthy';
+  const label=healthyReference?'Reference only':d.quality==='fail'?'Surge FAIL':d.quality==='watch'?'Near limit':'Surge PASS';
+  button.innerHTML='<span><i class="mark '+(healthyReference?'reference':d.quality)+'"></i><b>'+id+'</b></span><small>'+label+'</small>';
   button.addEventListener('click',()=>selectCoil(id));map.appendChild(button);
 }
 function selectCoil(id){
