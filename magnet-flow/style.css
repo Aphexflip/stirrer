@@ -4,3 +4,24 @@
 .bottom{display:grid;grid-template-columns:1fr 1.1fr;gap:13px}.panel{background:#142131;border:1px solid var(--line);border-radius:13px;padding:17px}.panel-heading{display:flex;gap:15px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}.panel-heading small{font:700 10px ui-monospace,monospace;color:var(--cyan);letter-spacing:.13em}.panel-heading h2{margin:4px 0;font-size:18px}.panel-heading>span{font-size:11px;color:var(--muted)}.coil-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 11px;max-width:580px}.column-head{text-align:center;color:#c3d8e7;font:700 11px ui-monospace,monospace;letter-spacing:.07em}.coil-btn{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;gap:8px;background:#1a2d40;border:1px solid #34495c;min-width:0}.coil-btn small{font-size:11px;color:var(--muted)}.coil-btn.selected{outline:2px solid var(--cyan);background:#25445b}.coil-btn .mark{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--green)}.coil-btn .mark.watch{background:var(--yellow)}.coil-btn .mark.fail{background:var(--red)}.micro{color:var(--muted);font-size:11px;margin:12px 0 0}.status{font:800 11px ui-monospace,monospace;background:#532837;color:#ff9aab;border-radius:7px;padding:6px 10px}.status.pass{background:#214237;color:#8bf1bf}.status.watch{background:#43371f;color:#ffe19a}.readouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.readout{background:#1c2d3f;border:1px solid #29455d;padding:10px;border-radius:8px;min-width:0}.readout small{display:block;color:var(--muted);font:700 10px ui-monospace,monospace}.readout strong{display:block;font-size:17px;white-space:nowrap;font-variant-numeric:tabular-nums}.readout strong.fail{color:var(--red)}.readout strong.watch{color:var(--yellow)}.explanation{color:#d2e1ed;margin:12px 0;line-height:1.6}.evidence{padding:8px 11px;border-left:2px solid var(--cyan);color:var(--muted);background:#1a3045;font-size:11px}footer{border-top:1px solid var(--line);margin-top:19px;padding-top:15px;color:var(--muted);font-size:11px}footer strong{color:#dce6f0}footer b{color:#ffa6a6}
 @media(max-width:940px){.scene-grid{grid-template-columns:1fr}.bottom{grid-template-columns:1fr}.model-stage,.scene-grid.solo .model-stage{aspect-ratio:1.7;min-height:320px}}@media(max-width:580px){.layout{padding-top:14px}.topbar{flex-direction:column;gap:10px}.tabs a{flex:1 1 140px;text-align:center;padding:9px 8px;font-size:12px}.model-stage,.scene-grid.solo .model-stage{aspect-ratio:1;min-height:320px}.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.readout strong{font-size:15px}.viewport-header{padding:11px}.toolbar{gap:11px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+/* Revision 1 — steel-and-copper diagnostic appearance */
+body{background:radial-gradient(ellipse at 50% -10%,#162a3c 0%,transparent 54%),#090f18}
+.topbar .kicker{color:#69d5f3}
+.viewport{box-shadow:0 16px 38px #00000028}
+.viewport-header{background:linear-gradient(110deg,#203346,#132435 77%)}
+.model-stage{background:radial-gradient(ellipse at 52% 44%,#21384b 0%,#0b1521 68%,#08111b 100%)}
+.model-stage:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#ffffff05 1px,transparent 1px),linear-gradient(#ffffff05 1px,transparent 1px);background-size:38px 38px;mask-image:radial-gradient(ellipse,transparent 25%,#000 110%);}
+.viewport-header small,.column-head{letter-spacing:.12em}
+.panel{background:linear-gradient(165deg,#182b3d,#111f2e)}
+.coil-btn{transition:background .16s ease,border-color .16s ease}
+.coil-btn:hover{border-color:#6c9ab2;background:#244058}
+.coil-btn.selected{outline:2px solid #5ccbed}
+.coil-btn .mark.reference{background:#55cbe9}
+.toolbar-divider{width:1px;height:24px;background:#334b60}
+.camera-modes{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:9px;padding:3px}
+.camera-modes button{border:0;background:transparent;padding:6px 10px;font-size:12px}
+.camera-modes button:hover{background:#28516b}
+.toolbar label.utility{gap:7px}
+.toolbar output{white-space:nowrap;font-variant-numeric:tabular-nums}
+#explodeRange{width:112px}
+@media(max-width:700px){.toolbar-divider{display:none}.camera-modes{width:100%;justify-content:center}.camera-modes button{flex:1}.toolbar label.utility{flex:1 1 190px}}
