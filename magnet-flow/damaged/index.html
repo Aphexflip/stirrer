@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b111b"><meta name="description" content="Explore healthy and damaged T-500 EMS magnet windings in interactive 3D with actual coil test data.">
+<title>Damaged T-500 #000422 — EMS Coil Lab</title>
+<link rel="stylesheet" href="/magnet-flow/style.css">
+<script defer src="/3d/three.min.js"></script><script defer src="/magnet-flow/app.js"></script></head>
+<body data-view="damaged"><main class="layout">
+<header class="topbar"><div><div class="kicker">ALTEK / EMS ENGINEERING · INTERACTIVE FIELD GUIDE</div><h1>T-500 <em>Coil Fault Lab</em></h1><p>Explore conventional current in the windings, magnetic-field sketches, and the measured difference between a healthy magnet and serial #000422.</p></div><a class="back" href="/3d/">↗ Stirrer 3D</a></header>
+<nav class="tabs"><a data-route="healthy" href="/magnet-flow/healthy/">01 Healthy</a><a data-route="damaged" href="/magnet-flow/damaged/">02 Damaged #000422</a><a data-route="compare" href="/magnet-flow/">03 Side-by-side</a></nav>
+<div class="notice"><span class="light"></span><strong>Interactive engineering illustration</strong><span>Geometry, current speed, flux lines, and fault position are illustrative. Coil test values are from the field record.</span></div>
+<section id="scene-grid" class="scene-grid" aria-label="Rotatable 3D EMS magnet views"></section>
+<div class="toolbar"><button id="runBtn" class="primary" type="button" aria-pressed="true">Ⅱ Pause</button><label><input id="fieldToggle" type="checkbox" checked> Show flux guides</label><label><input id="leakToggle" type="checkbox"> Hypothetical fault path</label><label>Motion speed <input id="speedRange" type="range" min="0" max="100" value="42"><output id="speedValue">1.0×</output></label><button id="resetBtn" type="button">↺ Reset view</button></div>
+<section class="bottom"><div class="panel"><div class="panel-heading"><div><small>PHYSICAL POSITION</small><h2>Select a coil</h2></div><span>Terminal side · A left / B right</span></div><div id="coilMap" class="coil-map"></div><p class="micro">Dot colors indicate <strong>surge-test result</strong>. Each coil's insulation reading was low while installed. Click a coil to highlight it in the 3D model.</p></div>
+<div class="panel"><div class="panel-heading"><div><small>MEASURED TEST RECORD</small><h2 id="detailTitle">A4 · Failed surge comparison</h2></div><span class="status" id="detailStatus">FAIL</span></div><div id="readouts" class="readouts"></div><p class="explanation" id="detailText"></p><div class="evidence"><strong>Reference:</strong> The known-good assembled T-500 measured off-scale high insulation resistance at 1000 VDC (&gt;999 MΩ). This is not an approved release threshold for each loose coil.</div></div></section>
+<footer><strong>Measured:</strong> T1–T2 winding resistance, installed coil-to-ground insulation resistance, and surge tester waveform difference. <strong>Not yet measured:</strong> bench insulation after coil removal. <strong>Not confirmed:</strong> fault's precise physical location or root cause. <b>Never energize an actual faulty coil to visualize flow.</b></footer>
+</main></body></html>
