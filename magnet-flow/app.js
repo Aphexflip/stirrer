@@ -105,7 +105,7 @@ function tagSprite(text,tint=0xcbe7f4){
 }
 function buildModel(type,stage){
  const scene=new T.Scene();const camera=new T.PerspectiveCamera(42,1,.05,70);
- const defaultCamera=new T.Vector3(5.25,3.55,7.55),lookAt=new T.Vector3(0,-.03,0);
+ const defaultCamera=new T.Vector3(5.25,3.55,7.55),lookAt=new T.Vector3(0,-.03,0);let cameraBase=defaultCamera.clone();
  camera.position.copy(defaultCamera);camera.lookAt(lookAt);
  const renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.8));
@@ -242,7 +242,7 @@ function buildModel(type,stage){
  let rotX=.10,rotY=-.05,zoom=1;
  const pointers=new Map();let tap=null,dragged=false,lastDist=0;
  const canvas=renderer.domElement;const raycaster=new T.Raycaster(),ndc=new T.Vector2();
- function updateCamera(){camera.position.copy(defaultCamera).multiplyScalar(zoom);camera.lookAt(lookAt);}
+ function updateCamera(){camera.position.copy(cameraBase).multiplyScalar(zoom);camera.lookAt(lookAt);}
  function start(e){pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});tap={x:e.clientX,y:e.clientY};dragged=false;canvas.setPointerCapture(e.pointerId);}
  function move(e){
    if(!pointers.has(e.pointerId))return;
@@ -272,7 +272,8 @@ function buildModel(type,stage){
  function setSpread(v){for(const c of Object.values(coils))c.group.position.y=c.baseY+(2-c.level)*v*.30;}
  return {
    type,renderer,scene,coils,setSpread,
-   reset(){zoom=1;rotX=.10;rotY=-.05;root.rotation.set(rotX,rotY,0);updateCamera();},
+   reset(){this.preset('iso');},
+   preset(viewName){zoom=1;rotX=.10;rotY=-.05;root.rotation.set(rotX,rotY,0);camera.up.set(0,1,0);cameraBase=defaultCamera.clone();if(viewName==='top'){rotX=0;rotY=0;root.rotation.set(0,0,0);cameraBase.set(0,9.5,.01);camera.up.set(0,0,-1);}else if(viewName==='terminal'){rotX=0;rotY=0;root.rotation.set(0,0,0);cameraBase.set(0,1.5,10.1);}updateCamera();},
    refreshCoils(){
       for(const c of Object.values(coils)){
         const active=selected===c.d.id,damaged=c.isFail;
@@ -312,6 +313,11 @@ document.getElementById('fieldToggle').addEventListener('change',e=>{showFields=
 document.getElementById('leakToggle').addEventListener('change',e=>{showFault=e.target.checked;});
 document.getElementById('speedRange').addEventListener('input',e=>{speed=Number(e.target.value)/42;speedValue.textContent=speed.toFixed(1)+'×';});
 document.getElementById('resetBtn').addEventListener('click',()=>models.forEach(m=>m.reset()));
+models.forEach(m=>m.setSpread(layerSpread));
+document.querySelectorAll('[data-camera]').forEach(b=>b.addEventListener('click',()=>models.forEach(m=>m.preset(b.dataset.camera))));
+const expl=document.getElementById('explodeRange'),explodeValue=document.getElementById('explodeValue');
+if(expl){expl.addEventListener('input',e=>{layerSpread=Number(e.target.value)/100;explodeValue.textContent=Math.round(layerSpread*100)+'%';models.forEach(m=>m.setSpread(layerSpread));});}
+const frameToggle=document.getElementById('frameToggle');if(frameToggle)frameToggle.addEventListener('change',e=>{showFrame=e.target.checked;});
 let prev=0;
 function frame(ts){const dt=Math.min((ts-prev)/1000,.05)||0;prev=ts;if(playing)clock+=dt*speed;for(const m of models)m.render(clock);requestAnimationFrame(frame);}
 requestAnimationFrame(frame);
